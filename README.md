@@ -139,4 +139,4 @@ All heavyweight dependencies (like z3) are **optional** and degrade gracefully i
 
 ---
 
-**Built with 💜 by the Swarm Team**
+**Built with 💜 by Project Vgony**
