@@ -8,7 +8,7 @@
     "swarm-local": {
       "command": "python",
       "args": ["-m", "fastmcp", "run", "server.py"],
-      "cwd": "v:/Projects/Servers/swarm",
+      "cwd": "/path/to/swarm",
       "env": {
         "PYTHONUNBUFFERED": "1",
         "OPENAI_API_KEY": "YOUR_KEY_HERE"
