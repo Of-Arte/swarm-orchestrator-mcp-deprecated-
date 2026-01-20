@@ -17,14 +17,122 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-00ADD8?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yIDEyTDEyIDE3TDIyIDEyIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiLz4KPC9zdmc+)](https://modelcontextprotocol.io)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
+### 🌐 Learn More
+
+[![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-00ADD8?style=flat-square)](https://modelcontextprotocol.io)
+[![HippoRAG Paper](https://img.shields.io/badge/HippoRAG-Research-9b59b6?style=flat-square)](https://arxiv.org/)
+[![Ochiai SBFL](https://img.shields.io/badge/SBFL-Ochiai-e74c3c?style=flat-square)](https://en.wikipedia.org/wiki/Fault_localization)
+
+---
 </div>
+
+### 🔍 How It Works
+
+```mermaid
+flowchart LR
+    A[Agent Query] --> B{Query Type?}
+    
+    B -->|Symbol: UserModel| C[⚡ Keyword Search<br/>~1ms]
+    B -->|Concept: auth logic| D[🧠 Semantic Search<br/>~240ms]
+    B -->|Architecture: payment flow| E[🔬 HippoRAG<br/>~1-2s]
+    
+    C --> F{Found?}
+    D --> F
+    
+    F -->|Yes| G[Return Results]
+    F -->|No Results| H[Suggest Alternatives]
+    
+    E --> I[AST Graph Analysis]
+    I --> J[PageRank Scoring]
+    J --> K[Return Context Map]
+    
+    style C fill:#2ecc71
+    style D fill:#3498db
+    style E fill:#9b59b6
+
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    subgraph "AI Agent Interface"
+        IDE[IDE/Client]
+    end
+    
+    subgraph "MCP Layer"
+        FastMCP{FastMCP Server}
+    end
+    
+    subgraph "Core Intelligence"
+        Orchestrator[Orchestrator Engine]
+        Blackboard[(Project State)]
+    end
+    
+    subgraph "Algorithmic Workers"
+        HippoRAG[🧠 HippoRAG<br/>AST + PageRank]
+        OCC[🔒 OCC Validator<br/>Conflict Detection]
+        SBFL[🐛 Ochiai SBFL<br/>Fault Localization]
+        Z3[✅ Z3 Verifier<br/>Formal Proof]
+        CRDT[🔄 CRDT Merger<br/>Concurrent Edits]
+    end
+    
+    subgraph "External Services"
+        Gemini[Google Gemini API]
+        Search[Hybrid Search Engine]
+        Git[Autonomous Git]
+    end
+    
+    IDE --> FastMCP
+    FastMCP --> Orchestrator
+    Orchestrator --> Blackboard
+    
+    Orchestrator --> HippoRAG
+    Orchestrator --> OCC
+    Orchestrator --> SBFL
+    Orchestrator --> Z3
+    Orchestrator --> CRDT
+    
+    Orchestrator --> Gemini
+    Orchestrator --> Search
+    Orchestrator --> Git
+    
+    style HippoRAG fill:#9b59b6
+    style OCC fill:#3498db
+    style SBFL fill:#e74c3c
+    style Z3 fill:#2ecc71
+    style CRDT fill:#f39c12
+```
+
+## ✨ Features Deep Dive
+
+### 🧠 **HippoRAG: Deep Code Understanding**
+
+Unlike traditional semantic search, HippoRAG builds an Abstract Syntax Tree (AST) knowledge graph of your codebase and uses **Personalized PageRank** to find architecturally relevant code.
+
+```python
+# Traditional search finds the function name
+search_codebase("UserModel")  # ✓ Fast but shallow
+
+# HippoRAG finds everything connected to the concept
+retrieve_context("user authentication flow")
+# → Returns: UserModel, AuthService, TokenManager, 
+#            SessionStore, LoginController
+# → Includes: Call graphs, import chains, usage patterns
+```
+
+**Supported Languages:**
+- 🐍 **Python** (built-in `ast` module)
+- 📜 **JavaScript/JSX** (via Tree-sitter)
+- 🔷 **TypeScript/TSX** (via Tree-sitter)
+- 🔜 **Go, Rust, Java** (plugin system ready)
+
 
 ---
 
 ## 🌟 What Makes Swarm Different?
 
 > [!IMPORTANT]
-> **Swarm isn't just another MCP server.** While most MCP servers simply wrap APIs or provide basic file operations, Swarm brings **deterministic algorithms** from computer science research into AI agent workflows.
+> **Swarm brings deterministic algorithms** into AI agent workflows.
 
 <table>
 <tr>
@@ -111,84 +219,6 @@ python orchestrator.py status
 > [!TIP]
 > **First time setup?** Set your `GEMINI_API_KEY` in `.env` for best performance. Swarm supports multiple embedding providers (Gemini, OpenAI, local).
 
----
-
-## 🏗️ Architecture
-
-```mermaid
-graph TB
-    subgraph "AI Agent Interface"
-        IDE[IDE/Client]
-    end
-    
-    subgraph "MCP Layer"
-        FastMCP{FastMCP Server}
-    end
-    
-    subgraph "Core Intelligence"
-        Orchestrator[Orchestrator Engine]
-        Blackboard[(Project State)]
-    end
-    
-    subgraph "Algorithmic Workers"
-        HippoRAG[🧠 HippoRAG<br/>AST + PageRank]
-        OCC[🔒 OCC Validator<br/>Conflict Detection]
-        SBFL[🐛 Ochiai SBFL<br/>Fault Localization]
-        Z3[✅ Z3 Verifier<br/>Formal Proof]
-        CRDT[🔄 CRDT Merger<br/>Concurrent Edits]
-    end
-    
-    subgraph "External Services"
-        Gemini[Google Gemini API]
-        Search[Hybrid Search Engine]
-        Git[Autonomous Git]
-    end
-    
-    IDE --> FastMCP
-    FastMCP --> Orchestrator
-    Orchestrator --> Blackboard
-    
-    Orchestrator --> HippoRAG
-    Orchestrator --> OCC
-    Orchestrator --> SBFL
-    Orchestrator --> Z3
-    Orchestrator --> CRDT
-    
-    Orchestrator --> Gemini
-    Orchestrator --> Search
-    Orchestrator --> Git
-    
-    style HippoRAG fill:#9b59b6
-    style OCC fill:#3498db
-    style SBFL fill:#e74c3c
-    style Z3 fill:#2ecc71
-    style CRDT fill:#f39c12
-```
-
-### 🔍 How It Works
-
-```mermaid
-flowchart LR
-    A[Agent Query] --> B{Query Type?}
-    
-    B -->|Symbol: UserModel| C[⚡ Keyword Search<br/>~1ms]
-    B -->|Concept: auth logic| D[🧠 Semantic Search<br/>~240ms]
-    B -->|Architecture: payment flow| E[🔬 HippoRAG<br/>~1-2s]
-    
-    C --> F{Found?}
-    D --> F
-    
-    F -->|Yes| G[Return Results]
-    F -->|No Results| H[Suggest Alternatives]
-    
-    E --> I[AST Graph Analysis]
-    I --> J[PageRank Scoring]
-    J --> K[Return Context Map]
-    
-    style C fill:#2ecc71
-    style D fill:#3498db
-    style E fill:#9b59b6
-```
 
 ---
 
@@ -509,18 +539,11 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 <div align="center">
 
----
 
-### 🌐 Learn More
-
-[![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-00ADD8?style=flat-square)](https://modelcontextprotocol.io)
-[![HippoRAG Paper](https://img.shields.io/badge/HippoRAG-Research-9b59b6?style=flat-square)](https://arxiv.org/)
-[![Ochiai SBFL](https://img.shields.io/badge/SBFL-Ochiai-e74c3c?style=flat-square)](https://en.wikipedia.org/wiki/Fault_localization)
-
----
 
 **Built with 💜 for autonomous AI development**
 
 *Where algorithms meet intelligence*
 
 </div>
+
