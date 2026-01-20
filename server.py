@@ -19,8 +19,15 @@ from mcp_core.telemetry.collector import collector
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("server.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("SwarmServer")
 
 # Initialize FastMCP server
 mcp = FastMCP("Swarm Orchestrator v3.0")
@@ -68,6 +75,32 @@ def get_ai_examples() -> str:
     """Common AI agent workflow examples."""
     return (_SERVER_DIR / "docs" / "ai" / "examples.md").read_text()
 
+# AI Skills - Procedural instructions for common workflows
+@mcp.resource("swarm://skills/git-commits")
+def get_skill_git_commits() -> str:
+    """Conventional Commits format and workflow."""
+    return (_SERVER_DIR / "docs" / "ai" / "skills" / "git-conventional-commits.md").read_text()
+
+@mcp.resource("swarm://skills/git-pr")
+def get_skill_git_pr() -> str:
+    """Pull request creation best practices."""
+    return (_SERVER_DIR / "docs" / "ai" / "skills" / "git-pull-request.md").read_text()
+
+@mcp.resource("swarm://skills/git-branch")
+def get_skill_git_branch() -> str:
+    """Branch naming and workflow conventions."""
+    return (_SERVER_DIR / "docs" / "ai" / "skills" / "git-branch-workflow.md").read_text()
+
+@mcp.resource("swarm://skills/security-audit")
+def get_skill_security_audit() -> str:
+    """OWASP security checklist and audit procedures."""
+    return (_SERVER_DIR / "docs" / "ai" / "skills" / "security-audit.md").read_text()
+
+@mcp.resource("swarm://skills/tool-creation")
+def get_skill_tool_creation() -> str:
+    """Guide for creating new MCP tools."""
+    return (_SERVER_DIR / "docs" / "ai" / "skills" / "tool-creation.md").read_text()
+
 # Human documentation
 @mcp.resource("swarm://docs/architecture")
 def get_architecture() -> str:
@@ -104,12 +137,43 @@ def get_changelog() -> str:
     """Version history and release notes."""
     return (_SERVER_DIR / "CHANGELOG.md").read_text()
 
+# ============================================================================
+# MCP Tools - Discovery & Health
+# ============================================================================
+
+@mcp.tool()
+def check_health() -> str:
+    """
+    Check the health of the Swarm MCP server.
+    Returns status of orchestrator, indexer, and connectivity.
+    """
+    status = ["🟢 Swarm MCP Server is healthy."]
+    
+    if _orchestrator:
+        status.append("✅ Orchestrator: Initialized")
+    else:
+        status.append("⚪ Orchestrator: Ready (Lazy-load)")
+        
+    if _indexer:
+        status.append("✅ Indexer: Initialized")
+    else:
+        status.append("⚪ Indexer: Ready (Lazy-load)")
+        
+    import os
+    if os.environ.get("IS_DOCKER"):
+        status.append("🐳 Environment: Docker Container")
+    else:
+        status.append("💻 Environment: Local Host")
+        
+    return "\n".join(status)
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
 
+
+# classify_task_intent() removed - not needed for direct tool access
 
 def get_orchestrator() -> Orchestrator:
     """Lazy-load orchestrator instance."""
@@ -131,115 +195,110 @@ def get_indexer() -> CodebaseIndexer:
     return _indexer
 
 
+
+# process_task() removed - use direct tools instead:
+# - search_codebase() for code search
+# - deliberate() for multi-step reasoning
+# - retrieve_context() for HippoRAG analysis
+
 @mcp.tool()
-@collector.track_tool("process_task")
-def process_task(instruction: str) -> str:
+@collector.track_tool("deliberate")
+def deliberate(
+    problem: str,
+    context: str = "",
+    constraints: list[str] = None,
+    steps: int = 3,
+    return_json: bool = True
+) -> str:
     """
-    Create and process a task in the Swarm orchestrator using algorithmic workers.
+    Structured multi-step deliberation using algorithmic workers.
     
-    **Task Routing (automatic based on instruction):**
+    **Alternative to "sequential thinking"** - uses deterministic algorithms for each step
+    instead of pure LLM reasoning. Best for complex problems requiring multiple perspectives.
     
-    Your instruction triggers specialized algorithm workers:
-    - "refactor..." → OCC Validator (conflict detection + resolution)
-    - "debug..." / "why is failing..." → Ochiai SBFL (fault localization)
-    - "verify..." / "prove..." → Z3 Verifier (formal verification)
-    - "merge..." / "combine..." → CRDT Merger (collaborative editing)
-    - "analyze..." / "understand..." →HippoRAG (deep context)
+    **Deliberation Flow**:
+    1. **Decompose**: Break problem into sub-problems using HippoRAG
+    2. **Analyze**: Route each sub-problem to appropriate worker
+    3. **Synthesize**: Combine worker outputs into coherent solution
     
-    **Best Practices for Instructions:**
+    **When to use**:
+    - Complex problems requiring multi-faceted analysis
+    - When you need to combine multiple algorithmic insights
+    - Breaking down architectural decisions
+    - Verifying complex invariants
     
-    ✅ Be specific:
-    - Good: "Refactor auth.py to use async/await"
-    - Bad: "fix auth"
+    **When NOT to use**:
+    - Simple queries (ask directly)
+    - Single-algorithm tasks (use process_task)
+    - File operations (use filesystem tools)
     
-    ✅ Include context:
-    - Good: "Debug login failure - tests in test_auth.py are failing"
-    - Bad: "login broken"
+    **Examples**:
+    ```python
+    # Architecture analysis
+    deliberate(
+        problem="Should we use microservices or monolith?",
+        context=view_file("ARCHITECTURE.md"),
+        constraints=["Must support 1M users", "Team of 5 engineers"],
+        steps=3
+    )
     
-    ✅ One concern per task:
-    - Good: "Verify calculate_tax never returns negative values"
-    - Bad: "Fix everything in billing module"
-    
-    **When to use:**
-    - Code analysis, refactoring, or modifications
-    - Tasks requiring algorithmic capabilities (SBFL, Z3, CRDT, OCC)
-    - Complex multi-step software engineering workflows
-    - Blackboard state management for task tracking
-    
-    **When NOT to use:**
-    - Simple code search (use search_codebase)
-    - Running commands (use Docker MCP)
-    - File operations (use filesystem MCP)
-    - Git operations (use GitHub MCP)
-    - Quick questions (ask directly)
-    
-    **Performance:**
-    - Varies by algorithm: ~1s-30s depending on task complexity
-    - Blackboard state persists between calls
-    - Check progress with get_status()
-    
-    **Works well with:**
-    - Docker MCP: Process task → test in containers
-    - GitHub MCP: Process task → commit changes
-    - Filesystem MCP: Read files → process task
-    
-    **Examples:**
-    ```
-    # Refactoring (triggers OCC conflict detection)
-    process_task("Refactor authentication module to use async/await")
-    
-    # Debugging (triggers Ochiai SBFL)
-    process_task("Debug why test_login fails - find suspicious lines")
-    
-    # Verification (triggers Z3)
-    process_task("Verify get_user() never returns None for valid IDs")
-    
-    # Analysis (triggers HippoRAG)
-    process_task("Analyze the data pipeline and document dependencies")
+    # Code verification
+    deliberate(
+        problem="Verify payment processor never loses transactions",
+        context=view_file("payment.py"),
+        constraints=["ACID compliance", "No negative balances"],
+        steps=4
+    )
     ```
     
     Args:
-        instruction: Natural language task description (specific, with context)
-        
-    Returns:
-        Task ID, status, and initial feedback from Swarm workers
-    """
+        problem: The core problem or question to deliberate on
+        context: Optional context (code, docs, or prior analysis)
+        constraints: Hard constraints that must be satisfied
+        steps: Number of deliberation steps (1-5, default 3)
+        return_json: Return structured JSON (default) or Markdown summary
     
-    # GUARDRAILS: Validate instruction specificity
-    def _validate_instruction(text: str) -> Optional[str]:
-        words = text.strip().split()
-        if len(words) < 3:
-            return "❌ Task Rejected: Instruction too short. Please be specific (e.g., 'Refactor auth.py to use async')."
-        # Can add more heuristics here (e.g. check for common vague words like "fix it", "help")
-        return None
-
-    error = _validate_instruction(instruction)
-    if error:
-        return error
-
+    Returns:
+        Deliberation result with steps, workers used, and final answer
+    """
+    if constraints is None:
+        constraints = []
+    
+    # Validate steps
+    if not 1 <= steps <= 5:
+        return "❌ Error: steps must be between 1 and 5"
+    
     try:
         orch = get_orchestrator()
+        result = orch.run_deliberation(problem, context, constraints, steps)
         
-        # Create a new task
-        task = Task(description=instruction)
-        task_id = task.task_id
-        
-        # Add to orchestrator state
-        orch.state.tasks[task_id] = task
-        orch.save_state()
-        
-        # Process the task
-        orch.process_task(task_id)
-        
-        # Reload to get updated status
-        orch.load_state()
-        updated_task = orch.state.tasks[task_id]
-        
-        return f"✅ Task {task_id[:8]} created and processed.\nStatus: {updated_task.status}\nFeedback: {updated_task.feedback_log[-1] if updated_task.feedback_log else 'None'}"
-        
+        if return_json:
+            # Return as JSON
+            return result.model_dump_json(indent=2)
+        else:
+            # Return as Markdown
+            steps_md = "\n".join([
+                f"### Step {s.step}: {s.name} ({s.worker})\n{s.output}\n"
+                for s in result.steps
+            ])
+            
+            return f"""# Deliberation Result
+
+**Problem**: {result.problem}
+**Confidence**: {result.confidence:.2f}
+
+## Steps
+{steps_md}
+
+## Final Answer
+{result.final_answer}
+"""
+    
     except Exception as e:
-        logger.error(f"Error processing task: {e}")
+        logger.error(f"Deliberation error: {e}")
         return f"❌ Error: {str(e)}"
+
+
 
 
 @mcp.tool()
@@ -312,7 +371,7 @@ def _is_likely_symbol(query: str) -> bool:
 
 @mcp.tool()
 @collector.track_tool("search_codebase")
-def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> str:
+async def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> str:
     """
     Search the codebase using hybrid semantic + keyword search.
     
@@ -374,7 +433,10 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
     Returns:
         Formatted search results with file paths, line numbers, scores, and code snippets
     """
-    try:
+    import asyncio
+    
+    def _blocking_search():
+        """Run the actual search in a thread to avoid blocking the event loop."""
         indexer = get_indexer()
         
         if not indexer.chunks:
@@ -382,33 +444,26 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
         
         # Check if query looks like a symbol (auto-suggest keyword_only)
         is_symbol = _is_likely_symbol(query)
-        hint_message = ""
         
         # ACTIVE GOVERNANCE: Auto-Pilot
-        # If it looks like a symbol and user didn't request keyword_only, try keyword search first.
         if is_symbol and not keyword_only:
             logger.info(f"⚡ Auto-Pilot: Detected symbol '{query}'. Attempting keyword search optimization...")
-            searcher = HybridSearch(indexer, None) # No embeddings needed for keyword
+            searcher = HybridSearch(indexer, None)
             keyword_results = searcher.keyword_search(query, top_k=top_k)
             
             if keyword_results:
-                 # Success! We saved ~240ms. Return these results with a note.
-                 result_lines = [f"⚡ Auto-optimized to keyword search (~1ms) for symbol '{query}'.\nFound {len(keyword_results)} results:\n"]
-                 for i, result in enumerate(keyword_results, 1):
+                result_lines = [f"⚡ Auto-optimized to keyword search (~1ms) for symbol '{query}'.\nFound {len(keyword_results)} results:\n"]
+                for i, result in enumerate(keyword_results, 1):
                     result_lines.append(f"{i}. {result.file_path}:{result.start_line}-{result.end_line}")
                     result_lines.append(f"   Score: {result.score:.3f}")
                     result_lines.append(f"   {result.content[:200]}...\n")
-                 return "\n".join(result_lines)
+                return "\n".join(result_lines)
             
-            # If keyword search failed (no results), we fall through to normal semantic search behavior.
-            # This is the "Safe Fallback" path.
             logger.info("Auto-Pilot: No keyword matches found. Falling back to semantic search.")
 
-        
         # Get embedding provider for hybrid search (optional)
         embed_provider = None
         if not keyword_only:
-            if not indexer.chunks: pass # Handled above
             has_embeddings = any(c.embedding is not None for c in indexer.chunks)
             if has_embeddings:
                 try:
@@ -435,7 +490,7 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
         if not keyword_only and len(results) <= 2:
             escalation_hint = f"\n💡 Few results found. Consider retrieve_context() for deeper architectural analysis and call graph relationships.\n"
         
-        # Format results (prepend hint if symbol was detected)
+        # Format results
         result_lines = [f"🔍 Found {len(results)} results for: {query}\n"]
         for i, result in enumerate(results, 1):
             result_lines.append(f"{i}. {result.file_path}:{result.start_line}-{result.end_line}")
@@ -443,15 +498,20 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
             result_lines.append(f"   {result.content[:200]}...\n")
         
         return "\n".join(result_lines) + escalation_hint
-        
+    
+    try:
+        # Run blocking search in thread pool to avoid blocking the MCP event loop
+        return await asyncio.to_thread(_blocking_search)
     except Exception as e:
         logger.error(f"Error searching codebase: {e}")
         return f"❌ Error: {str(e)}"
 
 
+
+
 @mcp.tool()
 @collector.track_tool("index_codebase")
-def index_codebase(path: str = ".", provider: str = "auto") -> str:
+async def index_codebase(path: str = ".", provider: str = "auto") -> str:
     """
     Index the codebase for semantic search capabilities.
     
@@ -532,7 +592,12 @@ def index_codebase(path: str = ".", provider: str = "auto") -> str:
     Returns:
         Number of indexed code chunks and status message
     """
-    try:
+    import asyncio
+    
+    def _blocking_index():
+        """Run the actual indexing in a thread to avoid blocking the event loop."""
+        global _indexer
+        
         config = IndexConfig(root_path=path)
         indexer = CodebaseIndexer(config)
         
@@ -541,17 +606,23 @@ def index_codebase(path: str = ".", provider: str = "auto") -> str:
             embed_provider = get_embedding_provider(provider)
             logger.info(f"Using embedding provider: {type(embed_provider).__name__}")
             indexer.index_all(embed_provider)
-        except RuntimeError as e:
-            logger.warning(f"⚠️ {e}")
-            logger.warning("Indexing files without embeddings (keyword search only)")
-            indexer.index_all(None)
+        except Exception as e:
+            logger.error(f"❌ Indexing failed with provider: {e}")
+            logger.warning("Falling back to keyword-only indexing (no embeddings)")
+            try:
+                indexer.index_all(None)
+            except Exception as inner_e:
+                logger.error(f"❌ Critical indexing failure: {inner_e}")
+                raise inner_e
         
         # Update global indexer
-        global _indexer
         _indexer = indexer
         
         return f"✅ Indexed {len(indexer.chunks)} chunks from {path}"
-        
+    
+    try:
+        # Run blocking indexing in thread pool to avoid blocking the MCP event loop
+        return await asyncio.to_thread(_blocking_index)
     except Exception as e:
         logger.error(f"Error indexing codebase: {e}")
         return f"❌ Error: {str(e)}"
@@ -662,16 +733,27 @@ def retrieve_context(query: str, top_k: int = 10) -> str:
 
 
 if __name__ == "__main__":
-
-    # Run the MCP server in SSE mode for Docker deployment
-    # Note: We bypass the fastmcp CLI to avoid the run_stdio_async() host argument bug
+    import sys
     import os
+
+    # Auto-detect transport preference
+    # 1. Explicit --sse flag
+    # 2. IS_DOCKER environment variable
+    # 3. Default to stdio
     
-    host = os.environ.get("MCP_HOST", "0.0.0.0")
-    port = int(os.environ.get("MCP_PORT", "8000"))
+    use_sse = "--sse" in sys.argv or os.environ.get("IS_DOCKER") == "1"
     
-    logger.info(f"🚀 Starting Swarm MCP Server on {host}:{port}...")
-    logger.info("📡 Transport: HTTP/SSE (Server-Sent Events)")
-    
-    # Run in SSE mode with explicit host/port configuration
-    mcp.run(transport="sse", host=host, port=port)
+    if use_sse:
+        host = os.environ.get("MCP_HOST", "0.0.0.0")
+        port = int(os.environ.get("MCP_PORT", "8000"))
+        
+        logger.info(f"🚀 Starting Swarm MCP Server on {host}:{port}...")
+        logger.info("📡 Transport: HTTP/SSE (Server-Sent Events)")
+        
+        # Run in SSE mode with explicit host/port configuration
+        mcp.run(transport="sse", host=host, port=port)
+    else:
+        # Default: Stdio mode (IDE/Local mode)
+        logger.info("🚀 Starting Swarm MCP Server...")
+        logger.info("🔌 Transport: Stdio (Standard Input/Output)")
+        mcp.run()

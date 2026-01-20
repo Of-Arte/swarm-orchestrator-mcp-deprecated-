@@ -60,43 +60,161 @@ class HippoRAGRetriever:
     with optional Tree-sitter support for JavaScript, TypeScript, and more.
     """
     
-    def __init__(self):
-        """Initialize retriever with parser registry and empty graph"""
+    def __init__(self, lite_mode: Optional[bool] = None):
+        """
+        Initialize retriever.
+        
+        Args:
+            lite_mode: If True, skip loading optional parsers (Tree-sitter).
+                      If None, auto-detects from SWARM_LITE_MODE env var.
+        """
+        
         if not NETWORKX_AVAILABLE:
             raise ImportError(
                 "networkx is required for HippoRAG. "
                 "Install with: pip install networkx>=3.0"
             )
         
+        # Auto-detect lite mode if not specified
+        if lite_mode is None:
+            import os
+            lite_mode = os.environ.get("SWARM_LITE_MODE", "false").lower() == "true"
+        
+        self.lite_mode = lite_mode
         self.graph: Optional['nx.DiGraph'] = None
         self.node_metadata: Dict[str, Dict] = {}
+        self.cache_path: Optional[Path] = None
         
-        # Initialize parser registry (Python always available)
+        # Initialize parser registry
         self.parser_registry = ParserRegistry()
+        
+        # In standard/full mode, register optional parsers (Tree-sitter)
+        # In lite mode, we stick to Python-only (default)
+        if not self.lite_mode:
+            self.parser_registry.register_optional_parsers()
         
         # Log supported languages
         langs = self.parser_registry.supported_languages()
-        logger.info(f"HippoRAG initialized with language support: {', '.join(langs)}")
+        mode_str = "Lite Mode (Python only)" if self.lite_mode else "Standard Mode"
+        logger.info(f"HippoRAG initialized in {mode_str}. Supported languages: {', '.join(langs)}")
+    
+    def save_graph(self, cache_path: Optional[str] = None) -> bool:
+        """
+        Persist graph and metadata to disk for fast reload.
+        
+        Args:
+            cache_path: Path to save cache (default: .hipporag_cache in cwd)
+            
+        Returns:
+            True if save successful
+        """
+        import pickle
+        
+        if self.graph is None:
+            logger.warning("No graph to save")
+            return False
+        
+        if cache_path is None:
+            cache_path = ".hipporag_cache"
+        
+        path = Path(cache_path)
+        
+        try:
+            cache_data = {
+                "graph": self.graph,
+                "node_metadata": self.node_metadata,
+                "version": "1.0"
+            }
+            
+            with open(path, "wb") as f:
+                pickle.dump(cache_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            
+            self.cache_path = path
+            logger.info(f"Graph saved to {path} ({path.stat().st_size / 1024:.1f} KB)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to save graph: {e}")
+            return False
+    
+    def load_graph(self, cache_path: Optional[str] = None) -> bool:
+        """
+        Load cached graph and metadata from disk.
+        
+        Args:
+            cache_path: Path to cache file (default: .hipporag_cache in cwd)
+            
+        Returns:
+            True if load successful
+        """
+        import pickle
+        
+        if cache_path is None:
+            cache_path = ".hipporag_cache"
+        
+        path = Path(cache_path)
+        
+        if not path.exists():
+            logger.debug(f"No cache found at {path}")
+            return False
+        
+        try:
+            with open(path, "rb") as f:
+                cache_data = pickle.load(f)
+            
+            # Validate cache version
+            if cache_data.get("version") != "1.0":
+                logger.warning("Cache version mismatch, rebuilding")
+                return False
+            
+            self.graph = cache_data["graph"]
+            self.node_metadata = cache_data["node_metadata"]
+            self.cache_path = path
+            
+            logger.info(
+                f"Graph loaded from cache: {self.graph.number_of_nodes()} nodes, "
+                f"{self.graph.number_of_edges()} edges"
+            )
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Failed to load cache: {e}")
+            return False
+
     
     def build_graph_from_ast(
         self,
         codebase_path: str,
-        extensions: Optional[List[str]] = None
+        extensions: Optional[List[str]] = None,
+        cache_path: Optional[str] = None,
+        use_cache: bool = True
     ) -> 'nx.DiGraph':
         """
         Extract function calls, imports, and class inheritance from AST.
         
-        Now supports multiple languages via parser plugins.
+        Now supports caching for fast reload.
         
         Args:
             codebase_path: Root directory of codebase
             extensions: File extensions to analyze (auto-detects supported if None)
+            cache_path: Path to cache file (default: .hipporag_cache in codebase_path)
+            use_cache: If True, load from cache if available (default: True)
             
         Returns:
             Directed graph with code entities as nodes
         """
-        graph = nx.DiGraph()
         base_path = Path(codebase_path)
+        
+        # Set default cache path
+        if cache_path is None:
+            cache_path = str(base_path / ".hipporag_cache")
+        
+        # Try to load from cache first
+        if use_cache and self.load_graph(cache_path):
+            return self.graph
+        
+        # Build fresh graph
+        graph = nx.DiGraph()
         
         # Auto-detect supported extensions if not specified
         if extensions is None:
@@ -131,6 +249,9 @@ class HippoRAGRetriever:
             f"Graph built: {graph.number_of_nodes()} nodes, "
             f"{graph.number_of_edges()} edges"
         )
+        
+        # Auto-save cache
+        self.save_graph(cache_path)
         
         return graph
     
@@ -259,7 +380,7 @@ class HippoRAGRetriever:
         personalization = {node: 1.0 / len(seed_nodes) for node in seed_nodes}
         
         try:
-            ppr_scores = nx.pagerank(
+            ppr_scores = self._simple_pagerank(
                 self.graph,
                 alpha=alpha,
                 personalization=personalization,
@@ -397,4 +518,70 @@ class HippoRAGRetriever:
         route = re.sub(r'/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', '/:id', route, flags=re.IGNORECASE)
         
         return route
+
+    def _simple_pagerank(
+        self,
+        G: 'nx.DiGraph',
+        alpha: float = 0.85,
+        personalization: Dict[str, float] = None,
+        max_iter: int = 100,
+        tol: float = 1.0e-6
+    ) -> Dict[str, float]:
+        """
+        Simple power iteration implementation of PageRank to avoid scipy dependency.
+        """
+        if len(G) == 0:
+            return {}
+        
+        if not G.is_directed():
+            D = G.to_directed()
+        else:
+            D = G
+            
+        nodes = list(D.nodes())
+        N = len(nodes)
+        
+        # Initial uniform distribution
+        x = {n: 1.0/N for n in nodes}
+        
+        # Personalization vector
+        if personalization is None:
+            p = {n: 1.0/N for n in nodes}
+        else:
+            # Normalize personalization vector
+            s = sum(personalization.values())
+            if s == 0:
+                p = {n: 1.0/N for n in nodes}
+            else:
+                p = {n: v/s for n, v in personalization.items()}
+                # Assign 0 for missing nodes
+                for n in nodes:
+                    if n not in p:
+                        p[n] = 0.0
+                    
+        # Power iteration
+        for _ in range(max_iter):
+            xlast = x
+            x = dict.fromkeys(xlast.keys(), 0)
+            
+            dangling_sum = 0
+            for n in xlast:
+                if D.out_degree(n) == 0:
+                    dangling_sum += xlast[n]
+            
+            # spread mass
+            for n in xlast:
+                for nbr in D[n]:
+                    x[nbr] += alpha * xlast[n] / D.out_degree(n)
+            
+            # add random jump + dangling factor
+            for n in x:
+                x[n] += (1.0 - alpha) * p[n] + alpha * dangling_sum * p[n]
+            
+            # check convergence
+            err = sum([abs(x[n] - xlast[n]) for n in x])
+            if err < N * tol:
+                return x
+                
+        return x
 

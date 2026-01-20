@@ -75,12 +75,12 @@ class AuthorSignature(BaseModel):
     agent_id: str
     role: Literal["architect", "engineer", "auditor", "system"]
     timestamp: datetime = Field(default_factory=datetime.now)
-    signature: Optional[str] = None  # Placeholder for future hash
-    action: str  # e.g., "create_task", "write_code"
+    action: str  # e.g., "created", "modified", "approved"
+    signature: Optional[str] = None  # Git provides attribution for IDE usage
 
 
 class Task(BaseModel):
-    """Swarm v2.0 Task (Replaces v1 Task)."""
+    """Swarm v3.0 Task (Standardized)."""
     task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     description: str
     status: str = Field(pattern=r"^(PENDING|IN_PROGRESS|COMPLETED|FAILED)$")
@@ -118,8 +118,7 @@ class Task(BaseModel):
 
 class ProjectProfile(BaseModel):
     """
-    The Single Source of Truth for Project Swarm v2.0.
-    Replaces BlackboardState.
+    The Single Source of Truth for Project Swarm v3.0.
     """
     schema_version: str = "2.0.0"
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -140,10 +139,15 @@ class ProjectProfile(BaseModel):
     memory_bank: Optional[Dict[str, Any]] = None
 
 
-    # [New: Model Routing]
-    # Loads from ~/.gemini/antigravity/mcp_config.json if available
     worker_models: Dict[str, str] = Field(
-        default_factory=load_global_model_config,
+        default_factory=lambda: {
+            "default": "gemini-3-flash-preview",
+            "architect": "gemini-3-flash-preview",
+            "engineer": "gemini-3-flash-preview",
+            "auditor": "gemini-3-flash-preview",
+            "git-writer": "llama-3.2-3b",
+            **load_global_model_config()
+        },
         description="Map roles to model IDs"
     )
 
@@ -169,3 +173,26 @@ class ProjectProfile(BaseModel):
     def update_validation(self, intent: IntentType, result: GateResult) -> None:
         self.validation.results[intent] = result
         self.validation.phase = "COMPLETED"  # Simplified logic
+
+# --- 6. Deliberation Schemas (v3.3) ---
+
+class DeliberationStep(BaseModel):
+    """A single step in the deliberation process."""
+    step: int
+    name: str
+    worker: str
+    output: Any
+    duration_ms: int = 0
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class DeliberationResult(BaseModel):
+    """The complete result of a deliberation."""
+    task_id: str
+    problem: str
+    context: str = ""
+    constraints: List[str] = Field(default_factory=list)
+    steps: List[DeliberationStep] = Field(default_factory=list)
+    final_answer: str = ""
+    confidence: float = 0.0
+    created_at: datetime = Field(default_factory=datetime.now)

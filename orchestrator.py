@@ -92,13 +92,19 @@ def validate() -> None:
 @app.command()
 def index(
     path: str = typer.Option(".", help="Path to codebase to index"),
-    provider: str = typer.Option("auto", help="Embedding provider: gemini, openai, local, keyword, auto")
+    provider: str = typer.Option("auto", help="Embedding provider: gemini, openai, local, keyword, auto"),
+    lite: bool = typer.Option(False, "--lite", help="Lite mode (keyword-only, Python-only)")
 ) -> None:
     """
     Index the codebase for semantic search.
-    Use 'keyword' provider for fast, offline indexing without embeddings.
+    Use --lite for small projects (skips embeddings and heavy parsers).
     """
     console.print(f"📚 Indexing codebase at: {path}")
+    
+    if lite:
+        console.print("[cyan]💡 Lite Mode active:[/cyan] Forcing keyword-only provider")
+        provider = "keyword"
+
     try:
         from mcp_core.search_engine import (
             CodebaseIndexer, IndexConfig, get_embedding_provider
@@ -110,7 +116,11 @@ def index(
         # Try to get embedding provider
         try:
             embed_provider = get_embedding_provider(provider)
-            console.print(f"🔌 Using embedding provider: {type(embed_provider).__name__}")
+            if embed_provider:
+                console.print(f"🔌 Using embedding provider: {type(embed_provider).__name__}")
+            else:
+                console.print("🔌 Using keyword-only provider (Lite Mode)")
+            
             indexer.index_all(embed_provider)
         except RuntimeError as e:
             console.print(f"[yellow]⚠️ {e}[/yellow]")
@@ -129,12 +139,16 @@ def search(
     query: str = typer.Argument(..., help="Search query"),
     top_k: int = typer.Option(5, help="Number of results to return"),
     provider: str = typer.Option("auto", help="Embedding provider: gemini, openai, local, auto"),
-    keyword_only: bool = typer.Option(False, "--keyword", "-k", help="Use keyword-only search (no embeddings)")
+    keyword_only: bool = typer.Option(False, "--keyword", "-k", help="Use keyword-only search (no embeddings)"),
+    lite: bool = typer.Option(False, "--lite", help="Lite mode (implies --keyword)")
 ) -> None:
     """
     Hybrid search: combines semantic understanding with exact text matching.
-    Use --keyword for literal function/class name lookups.
+    Use --lite or --keyword for fast, offline search.
     """
+    if lite:
+        keyword_only = True
+
     mode = "keyword" if keyword_only else "hybrid"
     console.print(f"🔍 [{mode.upper()}] Searching for: [cyan]{query}[/cyan]")
     try:
@@ -439,6 +453,90 @@ def benchmark() -> None:
         raise typer.Exit(code=1)
 
 
+# [V3.0: MCP & Docker Connectivity Commands]
+mcp_app = typer.Typer(help="Manage Docker MCP connectivity and IDE configuration.")
+app.add_typer(mcp_app, name="mcp")
+
+@mcp_app.command("discover")
+def mcp_discover():
+    """Discover running Docker MCP servers."""
+    console.print("[bold blue]🔍 Searching for Docker MCP servers...[/bold blue]")
+    try:
+        from scripts.mcp_discovery import get_docker_mcp_servers
+        servers = get_docker_mcp_servers()
+        
+        if not servers:
+            console.print("[yellow]❌ No Docker MCP servers found with mapped ports.[/yellow]")
+            return
+
+        table = Table(title="Docker MCP Servers")
+        table.add_column("Container", style="cyan")
+        table.add_column("Port", style="green")
+        table.add_column("Status", style="magenta")
+        table.add_column("SSE URL", style="blue")
+
+        for s in servers:
+            table.add_row(s['name'], s['port'], s['status'], s['url'])
+        
+        console.print(table)
+    except Exception as e:
+        console.print(f"[red]Error during discovery: {e}[/red]")
+
+@mcp_app.command("config")
+def mcp_config(
+    config_format: str = typer.Option("vscode", "--format", help="Config format: vscode, cursor, or windsurf"),
+    transport: str = typer.Option("stdio", help="Transport mode: stdio (docker exec) or sse (network)")
+):
+    """Generate IDE MCP client configuration."""
+    console.print(f"[bold blue]🛠️ Generating {config_format} configuration for {transport} transport...[/bold blue]")
+    
+    server_name = "swarm-orchestrator"
+    cwd = os.getcwd()
+    
+    if transport == "stdio":
+        config = {
+            "mcpServers": {
+                "swarm": {
+                    "command": "docker",
+                    "args": ["exec", "-i", "swarm-mcp-server", "python", "server.py"],
+                    "env": {
+                        "GEMINI_API_KEY": os.environ.get("GEMINI_API_KEY", ""),
+                        "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", "")
+                    }
+                }
+            }
+        }
+    else:
+        # SSE transport
+        try:
+            from scripts.mcp_discovery import get_docker_mcp_servers
+            servers = get_docker_mcp_servers()
+            target = next((s for s in servers if "swarm" in s['name']), None)
+            url = target['url'] if target else "http://localhost:8000/sse"
+        except Exception:
+            url = "http://localhost:8000/sse"
+            
+        config = {
+            "mcpServers": {
+                "swarm-sse": {
+                    "url": url
+                }
+            }
+        }
+
+    # Print to console (IDE can copy-paste)
+    console.print("\n[bold green]Configuration generated:[/bold green]")
+    import json
+    console.print(json.dumps(config, indent=2))
+    
+    # Save to file if requested (optional logic here)
+    if config_format == "vscode":
+        dest = os.path.join(cwd, ".vscode", "mcp.json")
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        # We don't overwrite user's main config, but we provide the snippet
+        console.print(f"\n[dim]Note: Save this to {dest} or your IDE's global MCP settings.[/dim]")
+
+
 @app.command()
 def check() -> None:
     """
@@ -536,7 +634,38 @@ def check() -> None:
         console.print("  ✅ JavaScript/TypeScript - Tree-sitter parsers available")
     except ImportError:
         console.print("  ⚪ JavaScript/TypeScript - Not installed [dim](Python-only mode)[/dim]")
-        console.print("     Install: pip install tree-sitter tree-sitter-javascript tree-sitter-typescript")
+        # Don't show install command if lite mode is active
+        if os.environ.get("SWARM_LITE_MODE", "false").lower() != "true":
+             console.print("     Install: pip install tree-sitter tree-sitter-javascript tree-sitter-typescript")
+             
+    # Codebase Profiling
+    console.print("\n[cyan]Codebase Profile:[/cyan]")
+    try:
+        from mcp_core.codebase_profiler import CodebaseProfiler
+        profiler = CodebaseProfiler()
+        profile = profiler.analyze(".")
+        
+        console.print(f"  Files: {profile.total_files}")
+        console.print(f"  Lines: {profile.total_lines:,}")
+        console.print(f"  Languages: {', '.join(profile.languages)}")
+        console.print(f"  Size: {profile.size_category}")
+        console.print(f"  Recommended Mode: [bold]{profile.recommended_mode}[/bold]")
+        
+        if profile.recommended_mode == "lite":
+            console.print("\n[cyan]💡 Lite Mode Recommended:[/cyan]")
+            console.print("  Your project is small enough to run without heavy features.")
+            console.print("  Set SWARM_LITE_MODE=true or use --lite flag.")
+            
+        elif profile.recommended_mode == "full":
+            console.print("\n[cyan]🚀 Full Mode Recommended:[/cyan]")
+            console.print("  Multi-language or large codebase detected.")
+            if "javascript" in profile.languages or "typescript" in profile.languages:
+                try:
+                    import tree_sitter
+                except ImportError:
+                     console.print("  Tip: Install tree-sitter packages for JS/TS support")
+    except Exception as e:
+        console.print(f"  [yellow]Profiling unavailable: {e}[/yellow]")
     
     # Summary
     console.print("\n" + "="*60)
@@ -558,17 +687,22 @@ def check() -> None:
         ))
         console.print("\n[yellow]Fix these issues, then run 'check' again.[/yellow]")
         raise typer.Exit(code=1)
+
     else:
+        status_title = "Status: Functional (Lite Mode)"
+        if os.environ.get("SWARM_LITE_MODE", "false").lower() == "true":
+            status_title = "Status: Functional (Lite Mode Active)"
+            
         console.print(Panel(
             f"[bold yellow]⚠️  {len(warnings)} Optional Feature(s) Unavailable[/bold yellow]\n\n" +
             "\n".join(f"• {w}" for w in warnings) +
             "\n\n[dim]Core functionality works. Install optional packages as needed.[/dim]",
-            title="Status: Functional (Lite Mode)",
+            title=status_title,
             border_style="yellow"
         ))
     
-    # Lite Mode Info
-    if not has_gemini_key and not has_openai_key:
+    # Lite Mode Info (only show if not already in lite mode)
+    if not has_gemini_key and not has_openai_key and os.environ.get("SWARM_LITE_MODE", "false").lower() != "true":
         console.print("\n[bold cyan]💡 Lite Mode Available:[/bold cyan]")
         console.print("  No API keys detected. Swarm can run in keyword-only mode:")
         console.print("  • python orchestrator.py index --provider keyword")

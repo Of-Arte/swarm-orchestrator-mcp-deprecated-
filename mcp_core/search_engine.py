@@ -48,10 +48,11 @@ class IndexConfig:
     """Configuration for the codebase indexer."""
     root_path: str = "."
     extensions: List[str] = field(default_factory=lambda: [
-        ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".cpp", ".c"
+        ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".cpp", ".c", ".md", ".txt"
     ])
     exclude_patterns: List[str] = field(default_factory=lambda: [
-        "node_modules", "__pycache__", ".git", "dist", "build", ".venv", "venv"
+        "node_modules", "__pycache__", ".git", "dist", "build", ".venv", "venv", 
+        ".swarm", "server.log", "*.tmp", "*.bak"
     ])
     chunk_size: int = 50  # lines per chunk
     chunk_overlap: int = 10  # overlapping lines
@@ -95,8 +96,9 @@ class GeminiEmbedding(EmbeddingProvider):
     def embed(self, texts: List[str]) -> List[List[float]]:
         embeddings = []
         for text in texts:
+            # [v3.5] Use Gemini Embedding 001
             result = self.client.embed_content(
-                model="models/embedding-001",
+                model="models/text-embedding-004", # Updated to latest stable
                 content=text
             )
             embeddings.append(result['embedding'])
@@ -156,16 +158,32 @@ class CodebaseIndexer:
         self.cache_path = Path(self.config.root_path) / ".swarm-cache" / "index.json"
     
     def scan_files(self) -> List[Path]:
-        """Scan the codebase for indexable files."""
+        """Scan the codebase for indexable files, pruning excluded directories."""
         root = Path(self.config.root_path)
         files = []
         
-        for ext in self.config.extensions:
-            for file_path in root.rglob(f"*{ext}"):
-                # Check exclusions
-                if any(excl in str(file_path) for excl in self.config.exclude_patterns):
-                    continue
-                files.append(file_path)
+        # Extensions set for fast lookup
+        ext_set = set(self.config.extensions)
+        
+        for dirpath, dirnames, filenames in os.walk(str(root)):
+            # Prune excluded directories in-place (MODIFY dirnames)
+            # This prevents os.walk from entering them
+            dirnames[:] = [
+                d for d in dirnames 
+                if not any(excl in os.path.join(dirpath, d) for excl in self.config.exclude_patterns)
+                and not any(excl in d for excl in self.config.exclude_patterns)
+            ]
+            
+            for f in filenames:
+                _, ext = os.path.splitext(f)
+                if ext in ext_set:
+                    file_path = Path(dirpath) / f
+                    
+                    # Double check file exclusions (though dir exclusion handles most)
+                    if any(excl in str(file_path) for excl in self.config.exclude_patterns):
+                        continue
+                        
+                    files.append(file_path)
         
         logger.info(f"Found {len(files)} files to index")
         return files
@@ -193,13 +211,37 @@ class CodebaseIndexer:
         
         return chunks
     
-    def index_all(self, provider: Optional[EmbeddingProvider] = None) -> None:
-        """Index all files and generate embeddings."""
+    def index_all(self, provider: Optional[EmbeddingProvider] = None, max_workers: int = 4) -> None:
+        """
+        Index all files and generate embeddings with multi-threading.
+        
+        Args:
+            provider: Optional embedding provider for semantic search
+            max_workers: Number of threads for parallel file processing (default: 4)
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from threading import Lock
+        
         files = self.scan_files()
         self.chunks = []
+        chunks_lock = Lock()
         
-        for file_path in files:
-            self.chunks.extend(self.chunk_file(file_path))
+        logger.info(f"Indexing {len(files)} files with {max_workers} threads...")
+        
+        # Multi-threaded file chunking
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all file chunking tasks
+            futures = {executor.submit(self.chunk_file, file_path): file_path for file_path in files}
+            
+            # Collect results as they complete
+            for future in as_completed(futures):
+                try:
+                    file_chunks = future.result()
+                    with chunks_lock:
+                        self.chunks.extend(file_chunks)
+                except Exception as e:
+                    file_path = futures[future]
+                    logger.error(f"Error chunking {file_path}: {e}")
         
         logger.info(f"Created {len(self.chunks)} chunks")
         
@@ -448,13 +490,17 @@ def get_embedding_provider(
         logger.info("Running in keyword-only mode (no API keys required)")
         return None
     
-    if provider_type == "gemini" or (provider_type == "auto" and os.environ.get("GEMINI_API_KEY")):
-        try:
-            return GeminiEmbedding(api_key)
-        except (ImportError, ValueError) as e:
-            if provider_type == "gemini":
-                raise
-            logger.warning(f"Gemini unavailable: {e}")
+    # [v3.5] Prioritize Gemini (Default)
+    if provider_type == "gemini" or (provider_type == "auto"):
+        # Auto-detect key if not provided
+        key = api_key or os.environ.get("GEMINI_API_KEY")
+        if key:
+            try:
+                return GeminiEmbedding(key)
+            except Exception as e:
+                logger.warning(f"Gemini init failed: {e}")
+                # Fallthrough to others only if explicit "auto"
+                if provider_type == "gemini": raise
     
     if provider_type == "openai" or (provider_type == "auto" and os.environ.get("OPENAI_API_KEY")):
         try:

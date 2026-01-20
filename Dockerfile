@@ -3,6 +3,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system dependencies (Git is required for Autonomous Git Worker)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Configure Git identity for GitWorker (bot commits)
+# Auth via GITHUB_TOKEN associates commits with user's account
+RUN git config --global user.name "Swarm Bot" && \
+    git config --global user.email "bot@swarm-mcp.dev"
+
 # Install Python dependencies
 # Note: z3-solver and other wheels are installed here
 COPY requirements.txt .
@@ -18,7 +26,7 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Verify v3.0 installation works (imports algorithms)
-RUN python -c "from mcp_core.algorithms import OCCValidator; print('Swarm v3.0 Ready')"
+RUN python -c "from mcp_core.algorithms import HippoRAGRetriever; print('Swarm v3.0 Ready')"
 
 # Default command: Run MCP server (bypassing fastmcp CLI to avoid run_stdio_async bug)
-CMD ["python", "server.py"]
+CMD ["python", "server.py", "--sse"]
