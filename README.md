@@ -1,4 +1,3 @@
-<div align="center">
 ```
 ███████╗██╗    ██╗ █████╗ ██████╗ ███╗   ███╗
 ██╔════╝██║    ██║██╔══██╗██╔══██╗████╗ ████║
@@ -7,6 +6,7 @@
 ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║
 ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
 ```
+<div align="center">
 
 ### 🐝 **Algorithmic Intelligence Meets Autonomous Development**
 
@@ -87,3 +87,4 @@ graph TB
         IDE[IDE/Client]
     end
 ```
+
