@@ -30,6 +30,7 @@ def generate_response(prompt: str, model_alias: str = "gemini-2.0-flash-exp") ->
         try:
             # Pass model ID directly
             data = call_openrouter_json(prompt, model_alias=model_alias)
+            logger.info(f"📊 Raw Model Data: {data}")
             return AgentResponse(**data)
         except Exception as e:
             logger.error(f"❌ OpenRouter Error: {e}. Falling back to default.")

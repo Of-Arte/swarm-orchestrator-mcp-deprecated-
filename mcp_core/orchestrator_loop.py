@@ -441,6 +441,15 @@ class Orchestrator:
                                execution_log.append(f"❌ Failed {tool.function}: {ex}")
                        
                        task.feedback_log.append(f"💾 Commit Worker Log:\n" + "\n".join(execution_log))
+                       
+                       # Add push confirmation prompt
+                       task.feedback_log.append(
+                           "\n📤 **Ready to Push**\n"
+                           "Your commit is ready locally. To push to GitHub:\n"
+                           "1. Run: `git push` (manual)\n"
+                           "2. OR set `git_auto_push=True` in the task (autonomous)\n\n"
+                           "The system will NOT auto-push without explicit confirmation."
+                       )
                     else:
                        task.feedback_log.append(f"💾 Commit Worker ({git_model}):\n{response.reasoning_trace}")
                     
@@ -510,6 +519,27 @@ class Orchestrator:
         """Execute local Git operations autonomously."""
         import subprocess
         repo_path = str(self.git.repo_path)
+        
+        # Generic command runner (for LLM-generated commands)
+        if tool_name == "run_command":
+            cmd = args.get("command_line", "")
+            cwd = args.get("cwd", repo_path)
+            
+            if not cmd.startswith("git "):
+                return f"⚠️ Rejected non-git command: {cmd}"
+            
+            try:
+                result = subprocess.run(
+                    cmd,
+                    shell=True,
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                return f"✅ {cmd}\n{result.stdout}"
+            except subprocess.CalledProcessError as e:
+                return f"❌ {cmd}\n{e.stderr}"
         
         if tool_name == "git_add":
             files = args.get("files", ".")

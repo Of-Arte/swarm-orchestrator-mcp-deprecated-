@@ -193,12 +193,22 @@ def register(mcp: FastMCP):
 # ============================================================================
 
 def prompt_git_commit(task: Any, context: Dict[str, Any]) -> str:
-    """Generates the prompt for the Commit Worker."""
+    """Generates the prompt for the Commit Worker using Conventional Commits format."""
+    from mcp_core.git_helpers import format_commit_message, format_commit_body
+    
     files = context.get("output_files", [])
+    
+    # Generate conventional commit message
+    commit_msg = format_commit_message(task, include_emoji=True)
+    body = format_commit_body(task.feedback_log)
+    
+    # Full commit message with optional body
+    full_commit = f"{commit_msg}\\n\\n{body}" if body else commit_msg
+    
     return f"""
 <role_definition>
 You are the Commit Worker.
-Your goal is to create atomic, well-described Git commits.
+Your goal is to create atomic, well-described Git commits following Conventional Commits spec.
 </role_definition>
 
 <mission>
@@ -208,25 +218,60 @@ Stage and commit the following files:
 Task: {task.description}
 </mission>
 
+<commit_format>
+**Conventional Commits**: type(scope): description
+
+Generated message:
+{full_commit}
+</commit_format>
+
 <rules>
 1. **Atomic Commits**: One commit per logical change
-2. **Message Format**: "🤖 Swarm: {task.description[:50]}..."
+2. **Conventional Format**: Follow type(scope): description pattern
 3. **Stage Only Outputs**: Only stage files in output_files list
 </rules>
 
-<tools>
-Use IDE git tools:
-1. git add {' '.join(files) if files else '.'}
-2. git commit -m "🤖 Swarm: {task.description[:50]}"
-3. Verify with: git log -1
-</tools>
+<output_format>
+Return ONLY valid JSON matching this schema:
+{{
+  "status": "SUCCESS",
+  "reasoning_trace": "Committing {task.description[:30]}... using conventional format",
+  "validation_score": 1.0,
+  "tool_calls": [
+    {{
+      "function": "run_command",
+      "arguments": {{
+        "command_line": "git add {' '.join(files) if files else '.'}",
+        "cwd": "."
+      }}
+    }},
+    {{
+      "function": "run_command",
+      "arguments": {{
+        "command_line": "git commit -m \\"{full_commit.replace(chr(10), ' ')}\\\"",
+        "cwd": "."
+      }}
+    }},
+    {{
+      "function": "run_command",
+      "arguments": {{
+        "command_line": "git log -1 --oneline",
+        "cwd": "."
+      }}
+    }}
+  ],
+  "blackboard_update": {{}}
+}}
+</output_format>
 
 <success_criteria>
 - All output files staged
-- Commit created with Swarm prefix
+- Commit created with conventional format
 - No unintended files included
 </success_criteria>
 """
+
+
 
 
 def prompt_git_pr(task: Any, context: Dict[str, Any]) -> str:

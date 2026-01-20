@@ -58,6 +58,89 @@ If you want to run completely offline (e.g. for privacy or zero cost):
 2. Update config or env var `LOCAL_LLM_URL`.
 3. Set `"git-writer": "ollama/llama3"` in `mcp_config.json`.
 
+## 📝 Conventional Commits Format
+
+All commits follow [Conventional Commits](https://conventionalcommits.org) specification:
+
+**Format**: `type(scope): description`
+
+**Types**:
+- `feat`: New feature (minor version bump)
+- `fix`: Bug fix (patch version bump)
+- `docs`: Documentation only
+- `refactor`: Code restructuring (no behavior change)
+- `perf`: Performance improvement
+- `test`: Adding/updating tests
+- `chore`: Build process, tooling, dependencies
+- `style`: Code formatting (no logic change)
+
+**Scope Inference**:
+- From `task.metadata["scope"]` if provided
+- Otherwise inferred from first `output_file` directory
+- Default: `"core"`
+
+**Examples**:
+```
+feat(auth): implement OAuth2 login
+fix(api): resolve null pointer in user endpoint
+docs: update README with Docker setup
+refactor(db)!: migrate to PostgreSQL
+
+BREAKING CHANGE: Database schema changed
+```
+
+**Breaking Changes**:
+Add `!` after scope OR include `BREAKING CHANGE:` footer for major version bumps.
+
+**Auto-Inference**:
+The system uses keywords in `task.description` to infer commit type automatically.
+
+## ⚠️ CRITICAL: IDE Workflow vs Git State
+
+**Your edits are NOT immediately visible to git.**
+
+### The Three-Stage Pipeline
+
+```
+Agent Edit → IDE Approval → Git Detection
+   (You)      (User)         (git status)
+```
+
+1. **Stage 1: You call `write_to_file`**
+   - File change shown to user as "pending" in IDE
+   - **NOT** written to disk yet
+   - **NOT** visible to `git status`
+
+2. **Stage 2: User accepts the change**
+   - File written to filesystem
+   - Now visible to `git status`
+
+3. **Stage 3: Git operations can proceed**
+   - `git add`, `git commit` work as expected
+
+### Common Mistake
+
+```python
+# ❌ WRONG ASSUMPTION
+write_to_file("server.py", ...)
+run_command("git status")  # Will NOT show server.py (not accepted yet!)
+```
+
+### When checking git state
+
+- `git status` shows **accepted changes** + **previous branch state**
+- It does NOT show your current session's pending edits
+- Staged files might be from OTHER branches or sessions
+
+### Practical Tip
+
+If you need to commit YOUR work:
+1. Tell the user: "Please accept the file changes, then I'll commit"
+2. OR use `git_commit_ready=True` flag (system handles timing)
+3. Never assume `git status` reflects your current edits
+
+---
+
 ## 📋 Checklist for Agents
 
 1. **Check Context**: Is `git_available` in your prompt found?

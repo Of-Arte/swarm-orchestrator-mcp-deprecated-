@@ -312,7 +312,7 @@ def _is_likely_symbol(query: str) -> bool:
 
 @mcp.tool()
 @collector.track_tool("search_codebase")
-def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> str:
+async def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> str:
     """
     Search the codebase using hybrid semantic + keyword search.
     
@@ -374,7 +374,10 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
     Returns:
         Formatted search results with file paths, line numbers, scores, and code snippets
     """
-    try:
+    import asyncio
+    
+    def _blocking_search():
+        """Run the actual search in a thread to avoid blocking the event loop."""
         indexer = get_indexer()
         
         if not indexer.chunks:
@@ -382,33 +385,26 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
         
         # Check if query looks like a symbol (auto-suggest keyword_only)
         is_symbol = _is_likely_symbol(query)
-        hint_message = ""
         
         # ACTIVE GOVERNANCE: Auto-Pilot
-        # If it looks like a symbol and user didn't request keyword_only, try keyword search first.
         if is_symbol and not keyword_only:
             logger.info(f"⚡ Auto-Pilot: Detected symbol '{query}'. Attempting keyword search optimization...")
-            searcher = HybridSearch(indexer, None) # No embeddings needed for keyword
+            searcher = HybridSearch(indexer, None)
             keyword_results = searcher.keyword_search(query, top_k=top_k)
             
             if keyword_results:
-                 # Success! We saved ~240ms. Return these results with a note.
-                 result_lines = [f"⚡ Auto-optimized to keyword search (~1ms) for symbol '{query}'.\nFound {len(keyword_results)} results:\n"]
-                 for i, result in enumerate(keyword_results, 1):
+                result_lines = [f"⚡ Auto-optimized to keyword search (~1ms) for symbol '{query}'.\nFound {len(keyword_results)} results:\n"]
+                for i, result in enumerate(keyword_results, 1):
                     result_lines.append(f"{i}. {result.file_path}:{result.start_line}-{result.end_line}")
                     result_lines.append(f"   Score: {result.score:.3f}")
                     result_lines.append(f"   {result.content[:200]}...\n")
-                 return "\n".join(result_lines)
+                return "\n".join(result_lines)
             
-            # If keyword search failed (no results), we fall through to normal semantic search behavior.
-            # This is the "Safe Fallback" path.
             logger.info("Auto-Pilot: No keyword matches found. Falling back to semantic search.")
 
-        
         # Get embedding provider for hybrid search (optional)
         embed_provider = None
         if not keyword_only:
-            if not indexer.chunks: pass # Handled above
             has_embeddings = any(c.embedding is not None for c in indexer.chunks)
             if has_embeddings:
                 try:
@@ -435,7 +431,7 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
         if not keyword_only and len(results) <= 2:
             escalation_hint = f"\n💡 Few results found. Consider retrieve_context() for deeper architectural analysis and call graph relationships.\n"
         
-        # Format results (prepend hint if symbol was detected)
+        # Format results
         result_lines = [f"🔍 Found {len(results)} results for: {query}\n"]
         for i, result in enumerate(results, 1):
             result_lines.append(f"{i}. {result.file_path}:{result.start_line}-{result.end_line}")
@@ -443,15 +439,20 @@ def search_codebase(query: str, top_k: int = 5, keyword_only: bool = False) -> s
             result_lines.append(f"   {result.content[:200]}...\n")
         
         return "\n".join(result_lines) + escalation_hint
-        
+    
+    try:
+        # Run blocking search in thread pool to avoid blocking the MCP event loop
+        return await asyncio.to_thread(_blocking_search)
     except Exception as e:
         logger.error(f"Error searching codebase: {e}")
         return f"❌ Error: {str(e)}"
 
 
+
+
 @mcp.tool()
 @collector.track_tool("index_codebase")
-def index_codebase(path: str = ".", provider: str = "auto") -> str:
+async def index_codebase(path: str = ".", provider: str = "auto") -> str:
     """
     Index the codebase for semantic search capabilities.
     
@@ -532,7 +533,12 @@ def index_codebase(path: str = ".", provider: str = "auto") -> str:
     Returns:
         Number of indexed code chunks and status message
     """
-    try:
+    import asyncio
+    
+    def _blocking_index():
+        """Run the actual indexing in a thread to avoid blocking the event loop."""
+        global _indexer
+        
         config = IndexConfig(root_path=path)
         indexer = CodebaseIndexer(config)
         
@@ -547,11 +553,13 @@ def index_codebase(path: str = ".", provider: str = "auto") -> str:
             indexer.index_all(None)
         
         # Update global indexer
-        global _indexer
         _indexer = indexer
         
         return f"✅ Indexed {len(indexer.chunks)} chunks from {path}"
-        
+    
+    try:
+        # Run blocking indexing in thread pool to avoid blocking the MCP event loop
+        return await asyncio.to_thread(_blocking_index)
     except Exception as e:
         logger.error(f"Error indexing codebase: {e}")
         return f"❌ Error: {str(e)}"

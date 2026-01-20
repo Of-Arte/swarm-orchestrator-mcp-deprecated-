@@ -1,9 +1,9 @@
-from typing import List
+from typing import List, Any
 from pydantic import BaseModel, Field, field_validator
 
 class ToolCall(BaseModel):
     function: str
-    arguments: str # JSON string or kwargs
+    arguments: Any # JSON string or Dict from LLM
 
 class AgentResponse(BaseModel):
     """

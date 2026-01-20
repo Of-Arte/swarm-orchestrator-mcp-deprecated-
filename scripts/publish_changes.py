@@ -54,7 +54,7 @@ def publish_changes():
         # Create Publish Task
         task = Task(
             task_id="publish_trigger",
-            description="Publish recent project changes (Git Worker, Local LLM, Schema Fixes)",
+            description="Optimize search engine (os.walk pruning) and fix async blocking in search/index tools",
             status="PENDING",
             git_branch_name="feature/git-worker-v3",
             git_commit_ready=True,

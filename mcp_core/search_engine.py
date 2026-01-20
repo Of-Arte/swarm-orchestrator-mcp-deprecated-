@@ -156,16 +156,32 @@ class CodebaseIndexer:
         self.cache_path = Path(self.config.root_path) / ".swarm-cache" / "index.json"
     
     def scan_files(self) -> List[Path]:
-        """Scan the codebase for indexable files."""
+        """Scan the codebase for indexable files, pruning excluded directories."""
         root = Path(self.config.root_path)
         files = []
         
-        for ext in self.config.extensions:
-            for file_path in root.rglob(f"*{ext}"):
-                # Check exclusions
-                if any(excl in str(file_path) for excl in self.config.exclude_patterns):
-                    continue
-                files.append(file_path)
+        # Extensions set for fast lookup
+        ext_set = set(self.config.extensions)
+        
+        for dirpath, dirnames, filenames in os.walk(str(root)):
+            # Prune excluded directories in-place (MODIFY dirnames)
+            # This prevents os.walk from entering them
+            dirnames[:] = [
+                d for d in dirnames 
+                if not any(excl in os.path.join(dirpath, d) for excl in self.config.exclude_patterns)
+                and not any(excl in d for excl in self.config.exclude_patterns)
+            ]
+            
+            for f in filenames:
+                _, ext = os.path.splitext(f)
+                if ext in ext_set:
+                    file_path = Path(dirpath) / f
+                    
+                    # Double check file exclusions (though dir exclusion handles most)
+                    if any(excl in str(file_path) for excl in self.config.exclude_patterns):
+                        continue
+                        
+                    files.append(file_path)
         
         logger.info(f"Found {len(files)} files to index")
         return files
