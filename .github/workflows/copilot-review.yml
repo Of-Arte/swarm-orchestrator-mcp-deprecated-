@@ -17,5 +17,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number,
-              reviewers: ['your-algorithmic-lead'] # Placeholder, update as needed
+              reviewers: ['your-algorithmic-lead'] // Placeholder, update as needed
             });

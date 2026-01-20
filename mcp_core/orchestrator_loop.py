@@ -8,7 +8,7 @@ from filelock import FileLock
 from datetime import datetime
 
 # V2 Core
-from mcp_core.swarm_schemas import ProjectProfile, Task
+from mcp_core.swarm_schemas import ProjectProfile, Task, DeliberationResult, DeliberationStep
 from mcp_core.stack_detector import StackDetector
 from mcp_core.toolchain_manager import ToolchainManager
 from mcp_core.worker_prompts import prompt_architect, prompt_engineer, prompt_auditor
@@ -665,7 +665,6 @@ class Orchestrator:
         This is the alternative to "sequential thinking" - each step uses 
         deterministic algorithms instead of pure LLM reasoning.
         """
-        from mcp_core.swarm_schemas import DeliberationResult, DeliberationStep
         from mcp_core.worker_prompts import prompt_synthesizer
         import time
         import uuid
