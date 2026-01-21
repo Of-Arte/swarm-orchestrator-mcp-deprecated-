@@ -8,7 +8,10 @@
 ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║
 ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
 ```
-### 🌐 ****Built for autonomous software engineeering**
+</div>
+<div align="center">
+
+### 🌐 **Built for autonomous software engineeering**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
@@ -19,13 +22,11 @@
 [![HippoRAG Paper](https://img.shields.io/badge/HippoRAG-Research-9b59b6?style=flat-square)](https://arxiv.org/)
 [![Ochiai SBFL](https://img.shields.io/badge/SBFL-Ochiai-e74c3c?style=flat-square)](https://en.wikipedia.org/wiki/Fault_localization)
 
----
-
 ## 📖 Documentation
 
 <table>
 <tr>
-<td width="50%">
+<td width="60%">
 
 ### 👨‍💻 For Humans
 - [Getting Started](docs/human/getting-started.md)
@@ -36,7 +37,7 @@
 - [Performance](docs/human/performance.md)
 
 </td>
-<td width="50%">
+<td width="40%">
 
 ### For AI
 - [Agent Guide](docs/ai/agent-guide.md)
@@ -48,7 +49,6 @@
 </tr>
 </table>
 
----
 ## 🎯 Tool Selection Guide
 
 **Which tool should your agent use?**
@@ -110,7 +110,7 @@ flowchart LR
 ## 🌟 What Makes Swarm Different?
 
 > [!IMPORTANT]
-> **HippoRAG is **slower** than keyword search (~1-2s vs ~1ms) but provides deep architectural context. Use it when you need to understand relationships, not just find text.
+> HippoRAG is *slower* than keyword search (~1-2s vs ~1ms) but provides deep architectural context. Use it when you need to understand relationships, not just find text.
 
 <table>
 <tr>
@@ -440,3 +440,4 @@ MIT License - See [LICENSE](LICENSE) for details.
 </div>
 
 </div>
+
