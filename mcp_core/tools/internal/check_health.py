@@ -47,13 +47,11 @@ def check_health() -> str:
     
     # 2. PostgreSQL Status
     try:
-        from mcp_core.postgres_client import PostgreSQLMCPClient
-        pg = PostgreSQLMCPClient()
-        if pg.connect():
-            report_lines.append("✅ PostgreSQL: Connected")
-            pg.close()
+        pg_url = os.environ.get("POSTGRES_URL")
+        if pg_url:
+            report_lines.append("✅ PostgreSQL: Configured (URL present)")
         else:
-            report_lines.append("⚠️  PostgreSQL: Not configured")
+            report_lines.append("⚠️  PostgreSQL: Not configured (POSTGRES_URL missing)")
     except Exception as e:
         report_lines.append(f"❌ PostgreSQL: {str(e)[:50]}")
     

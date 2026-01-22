@@ -78,7 +78,7 @@ debug_indexer.py
 mcp_gateway.py
 validate_all.py
 reproduction.py
-dashboard_server.py
+
 
 # Verification artifacts
 debug_output.txt

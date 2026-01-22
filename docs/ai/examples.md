@@ -2,6 +2,32 @@
 
 Common workflows for AI agents using Project Swarm.
 
+## Example 0: System Health & Maintenance (Internal Scope)
+
+**Goal**: Identify why a tool is failing and optimize system performance.
+
+1. **Check System Vitals (Internal)**
+   ```python
+   # Requires SWARM_INTERNAL_TOOLS=true
+   check_health()
+   ```
+
+2. **Analyze Telemetry**
+   ```python
+   # Identifying a flaky tool from health report
+   from mcp_core.telemetry.telemetry_analytics import TelemetryAnalyticsService
+   analytics = TelemetryAnalyticsService()
+   analytics.get_tool_success_rate("search_codebase", window_days=3)
+   ```
+
+3. **Maintenance Action**
+   ```python
+   # Optimize database performance
+   analytics.optimize_database()
+   ```
+
+---
+
 ## Example 1: Code Discovery
 
 **Scenario:** Find and understand authentication code

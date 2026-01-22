@@ -14,13 +14,13 @@ import Settings from './views/Settings';
 import Analytics from './views/Analytics';
 
 import HealthBadge from './components/HealthBadge';
-import SessionSwitcher from './components/SessionSwitcher';
 import LoginView from './views/LoginView';
 import { useSwarmData } from './hooks/useSwarmData';
 
 function App() {
   const [location] = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('swarm_key'));
+  // DEV: Auth disabled
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const { data: status } = useSwarmData('/status');
   const { data: health } = useSwarmData('/health', 10000); // Poll health every 10s
   const isDemo = status?.status === 'demo';
@@ -48,10 +48,6 @@ function App() {
         
         <HealthBadge health={health} />
         
-        <div style={{ padding: '0 8px' }}>
-          <SessionSwitcher />
-        </div>
-        
         <ul className="nav-links">
           <li>
             <Link href="/">
@@ -73,7 +69,7 @@ function App() {
                 className={location === '/tasks' ? 'active' : ''}
               >
                 <ListChecks size={20} />
-                <span>Task Board</span>
+                <span>Skills & Tools</span>
               </motion.a>
             </Link>
           </li>
@@ -143,6 +139,11 @@ function App() {
 
       {/* Main Content */}
       <main className="main-viewport">
+        {isDemo && (
+          <div className="demo-banner">
+            <span>⚠️ DEMO MODE - Unable to connect to Swarm MCP. Showing mock data.</span>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={location}

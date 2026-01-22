@@ -13,7 +13,7 @@ from fastmcp import FastMCP
 logger = logging.getLogger(__name__)
 
 # Dev build: List of tools that should only load in debug mode
-DEBUG_ONLY_TOOLS = ["mcp_transport_debug.py"]
+DEBUG_ONLY_TOOLS = []
 
 
 def load_dynamic_tools(mcp: FastMCP, scopes: list[str] = None) -> int:

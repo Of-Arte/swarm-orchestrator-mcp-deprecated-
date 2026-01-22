@@ -59,18 +59,18 @@ def simulate_memory_refresh():
     print("✅ Memory Refresh Skill simulation successful.")
 
 def test_orient_trigger():
-    """Verify MASTER_PLAN.md has the orienting search triggers."""
+    """Verify ROADMAP.md has the orienting search triggers."""
     print("\n🔍 Testing 'Memory Orient Skill' Trigger...")
-    plan = MASTER_PLAN
+    plan = ROADMAP
     content = plan.read_text(encoding="utf-8")
-    # Note: Trigger might be moved or renamed in MASTER_PLAN, checking for general existence
-    assert "orient_context" in content or "search_codebase" in content, "Orienting trigger missing from MASTER_PLAN.md"
-    print("✅ Memory Orient Skill trigger verified in MASTER_PLAN.md.")
+    # Note: Trigger might be moved or renamed in ROADMAP, checking for general existence
+    assert "orient_context" in content or "search_codebase" in content, "Orienting trigger missing from ROADMAP.md"
+    print("✅ Memory Orient Skill trigger verified in ROADMAP.md.")
 
 def simulate_roadmap_sync():
     """Simulate 'Roadmap Sync Skill'."""
     print("\n🔍 Simulating 'Roadmap Sync Skill'...")
-    plan_content = MASTER_PLAN.read_text(encoding="utf-8")
+    plan_content = ROADMAP.read_text(encoding="utf-8")
     if "[ ] **Memory Unification**" in plan_content:
         new_content = plan_content.replace("[ ] **Memory Unification**", "[x] **Memory Unification**")
         MASTER_PLAN.write_text(new_content, encoding="utf-8")

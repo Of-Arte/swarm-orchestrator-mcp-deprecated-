@@ -97,7 +97,7 @@ class PostgreSQLMCPClient:
         )
         # UPSERT based on pattern
         await self.execute_query(
-            "INSERT INTO error_knowledge (pattern, symptom, recommendation) VALUES (%s, %s, %s) ON CONFLICT (pattern) DO UPDATE SET symptom = EXCLUDED.symptom, recommendation = EXCLUDED.recommendation, last_occurred = CURRENT_TIMESTAMP",
+            "INSERT INTO error_knowledge (pattern, symptom, recommendation) VALUES ($1, $2, $3) ON CONFLICT (pattern) DO UPDATE SET symptom = EXCLUDED.symptom, recommendation = EXCLUDED.recommendation, last_occurred = CURRENT_TIMESTAMP",
             [pattern, symptom, recommendation]
         )
         return True

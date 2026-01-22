@@ -10,7 +10,7 @@ from mcp_core.postgres_client import PostgreSQLMCPClient
 
 async def migrate():
     # Paths
-    error_log_path = Path("v:/Projects/Servers/swarm/docs/ai/memory/active/00_ERROR_LOG.md")
+    error_log_path = Path("docs/ai/memory/active/00_ERROR_LOG.md")
     if not error_log_path.exists():
         print(f"Error log not found at {error_log_path}")
         return

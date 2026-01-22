@@ -1,0 +1,32 @@
+.welcome-message-container {
+  background-color: #f0f2f5;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.welcome-message-container h2 {
+  margin-top: 0;
+  color: #1c1e21;
+}
+
+.welcome-message-container p {
+  color: #606770;
+}
+
+.input-container {
+  margin-top: 16px;
+}
+
+.input-container label {
+  margin-right: 8px;
+  color: #606770;
+}
+
+.input-container input {
+  padding: 8px;
+  border: 1px solid #dddfe2;
+  border-radius: 4px;
+}

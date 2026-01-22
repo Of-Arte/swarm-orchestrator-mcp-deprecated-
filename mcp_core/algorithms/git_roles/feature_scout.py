@@ -309,7 +309,7 @@ Format as JSON:
         from datetime import datetime
         
         # Append to issues.md (fallback when GitHub is unavailable)
-        issues_file = Path("docs/ai/memory/active/issues.md")
+        issues_file = Path("docs/ai/issues.md")
         
         try:
             # Ensure parent directory exists

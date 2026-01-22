@@ -264,3 +264,44 @@ Repo Context:
 Model ID: {contributing_model or 'Unknown'}
 </input_contract>
 """
+
+def prompt_tool_planner(goal: str, tools: list, context: dict = None) -> str:
+    """Generates the prompt for the Tool Planner (Meta-Orchestrator)."""
+    import json
+    tools_json = json.dumps(tools, indent=2)
+    context_text = json.dumps(context, indent=2) if context else "None"
+    
+    return f"""
+You are the Swarm Meta-Orchestrator. Your mission is to plan the execution of a complex task using ONLY the tools provided by the client (IDE).
+
+### Available Tools (from Client):
+{tools_json}
+
+### Operational Context:
+{context_text}
+
+### User Goal:
+{goal}
+
+### Instructions:
+1. Analyze the User Goal and break it down into logical steps.
+2. For each step, select the most appropriate tool from the "Available Tools" list.
+3. Provide a sequence of tool calls that will achieve the goal.
+4. Each entry in the sequence MUST include:
+   - `tool_name`: Exact name from the provided list.
+   - `arguments`: Dictionary of arguments for the tool.
+   - `reasoning`: Why this tool is chosen for this step.
+
+### Response Format:
+Respond ONLY with a JSON object containing a `plan` key, which is a list of tool call objects.
+Example:
+{{
+  "plan": [
+    {{
+      "tool_name": "list_dir",
+      "arguments": {{ "path": "." }},
+      "reasoning": "Identify project structure"
+    }}
+  ]
+}}
+"""
