@@ -4,6 +4,16 @@ Swarm v3.0 - Python-Native Orchestrator CLI
 A unified CLI for project management, validation, and semantic search.
 """
 
+import sys
+import io
+
+# Force UTF-8 output encoding (prevents Windows CP1252 errors with emojis/Unicode)
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+
 import typer
 import os
 import subprocess
@@ -11,9 +21,19 @@ from typing import Optional
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
+from mcp_core.startup_checks import run_startup_checks
 
-app = typer.Typer(help="Swarm Orchestrator v3.2 CLI")
+app = typer.Typer(help="Swarm Orchestrator v3.4.0 CLI")
 console = Console()
+
+@app.callback()
+def main_callback():
+    """
+    Run startup checks before any command.
+    """
+    if not run_startup_checks():
+        console.print("[bold red]❌ Critical startup checks failed. See logs.[/bold red]")
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -497,6 +517,56 @@ def benchmark() -> None:
             title="[bold]v3.0 Performance Summary[/bold]"
         ))
         
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+        raise typer.Exit(code=1)
+
+
+
+@app.command()
+def release(
+    bump: str = typer.Argument(..., help="major, minor, or patch"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate changes without writing")
+):
+    """
+    Automate the release process: bump version, update changelog, and tag.
+    """
+    if bump not in ["major", "minor", "patch"]:
+        console.print("[bold red]Error: Bump type must be 'major', 'minor', or 'patch'[/bold red]")
+        raise typer.Exit(code=1)
+
+    try:
+        from mcp_core.lifecycle import VersionManager
+        
+        vm = VersionManager(".")
+        current_ver = vm.get_current_version()
+        console.print(f"📦 Current version: [cyan]{current_ver}[/cyan]")
+
+        if dry_run:
+            console.print(f"[yellow][Dry Run] Would bump '{bump}'[/yellow]")
+            console.print("[yellow][Dry Run] Would update pyproject.toml and CHANGELOG.md[/yellow]")
+            return
+
+        # 1. Bump Version
+        new_ver = vm.bump_version(bump)
+        console.print(f"🚀 Bumping to [bold green]{new_ver}[/bold green]...")
+
+        # 2. Update Changelog
+        vm.update_changelog(new_ver)
+        console.print("📝 Updated CHANGELOG.md")
+
+        # 3. Git Operations (Instructions for now)
+        console.print("\n[bold green]✅ Release preparation complete![/bold green]")
+        console.print(Panel(
+            f"Next Steps:\n\n"
+            f"  git add pyproject.toml CHANGELOG.md\n"
+            f"  git commit -m 'chore(release): prepare v{new_ver}'\n"
+            f"  git tag v{new_ver}\n"
+            f"  git push origin main --tags",
+            title=f"Release v{new_ver} Ready",
+            border_style="green"
+        ))
+
     except Exception as e:
         console.print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(code=1)

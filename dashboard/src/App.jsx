@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Route, Link, useLocation } from 'wouter';
-import { LayoutDashboard, Database, Network, ListChecks, Settings as SettingsIcon, Activity, Book } from 'lucide-react';
+import { LayoutDashboard, Database, Network, ListChecks, Settings as SettingsIcon, Activity, Book, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './styles/design_system.css';
 import './App.css';
@@ -11,13 +11,28 @@ import KnowledgeGraph from './views/KnowledgeGraph';
 import DocsPage from './views/DocsPage';
 import Memory from './views/Memory';
 import Settings from './views/Settings';
+import Analytics from './views/Analytics';
 
+import HealthBadge from './components/HealthBadge';
+import LoginView from './views/LoginView';
 import { useSwarmData } from './hooks/useSwarmData';
 
 function App() {
   const [location] = useLocation();
+  // DEV: Auth disabled
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const { data: status } = useSwarmData('/status');
+  const { data: health } = useSwarmData('/health', 10000); // Poll health every 10s
   const isDemo = status?.status === 'demo';
+
+  const handleLogin = (key) => {
+    localStorage.setItem('swarm_key', key);
+    setIsAuthenticated(true);
+  };
+
+  if (!isAuthenticated) {
+    return <LoginView onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app-container">
@@ -31,61 +46,104 @@ function App() {
           </div>
         </div>
         
+        <HealthBadge health={health} />
+        
         <ul className="nav-links">
           <li>
             <Link href="/">
-              <a className={location === '/' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/' ? 'active' : ''}
+              >
                 <LayoutDashboard size={20} />
                 <span>Overview</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/tasks">
-              <a className={location === '/tasks' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/tasks' ? 'active' : ''}
+              >
                 <ListChecks size={20} />
-                <span>Task Board</span>
-              </a>
+                <span>Skills & Tools</span>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/graph">
-              <a className={location === '/graph' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/graph' ? 'active' : ''}
+              >
                 <Network size={20} />
                 <span>AI Knowledge Base</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/memory">
-              <a className={location === '/memory' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/memory' ? 'active' : ''}
+              >
                 <Database size={20} />
                 <span>Memory</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/docs">
-              <a className={location === '/docs' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/docs' ? 'active' : ''}
+              >
                 <Book size={20} />
                 <span>Documentation</span>
-              </a>
+              </motion.a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/analytics">
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/analytics' ? 'active' : ''}
+              >
+                <BarChart3 size={20} />
+                <span>Analytics</span>
+              </motion.a>
             </Link>
           </li>
         </ul>
 
         <div className="nav-footer">
           <Link href="/settings">
-            <a className={location === '/settings' ? 'active' : ''}>
+            <motion.a 
+              whileHover={{ scale: 1.02, x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              className={location === '/settings' ? 'active' : ''}
+            >
               <SettingsIcon size={20} />
               <span>Settings</span>
-            </a>
+            </motion.a>
           </Link>
         </div>
       </nav>
 
       {/* Main Content */}
       <main className="main-viewport">
+        {isDemo && (
+          <div className="demo-banner">
+            <span>⚠️ DEMO MODE - Unable to connect to Swarm MCP. Showing mock data.</span>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={location}
@@ -100,6 +158,7 @@ function App() {
             <Route path="/tasks" component={TaskBoard} />
             <Route path="/docs" component={DocsPage} />
             <Route path="/memory" component={Memory} />
+            <Route path="/analytics" component={Analytics} />
             <Route path="/settings" component={Settings} />
           </motion.div>
         </AnimatePresence>

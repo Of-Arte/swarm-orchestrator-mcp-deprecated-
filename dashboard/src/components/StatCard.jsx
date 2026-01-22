@@ -7,7 +7,9 @@ const StatCard = ({ icon: Icon, label, value, color, delay = 0 }) => {
       className="glass-panel stat-card"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -6, boxShadow: `0 12px 30px -10px ${color}40`, border: `1px solid ${color}60` }}
       transition={{ duration: 0.3, delay }}
+      style={{ cursor: 'default' }}
     >
       <div className="stat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="stat-icon-bg" style={{ 

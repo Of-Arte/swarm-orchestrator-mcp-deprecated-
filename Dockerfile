@@ -26,6 +26,15 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js and npm for GitHub MCP Server
+RUN apt-get update && apt-get install -y \
+    curl \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install GitHub MCP Server globally
+RUN npm install -g @modelcontextprotocol/server-github
 # Create non-root user
 RUN useradd -m -u 1000 swarm && \
     chown -R swarm:swarm /app

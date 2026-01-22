@@ -14,7 +14,7 @@ Instructions for recording high-fidelity context into the Swarm's "active" memor
 
 ### 1. Create Active Task Log
 If a task is complex, create a dedicated file:
-`docs/ai/memory/active/task_<name>.md`
+`docs/ai/active/task_<name>.md`
 
 ### 2. Include "Current State" Snapshots
 Don't just describe the plan; capture the state of the world:

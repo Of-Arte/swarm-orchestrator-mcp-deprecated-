@@ -97,7 +97,7 @@ class PostgreSQLMCPClient:
         )
         # UPSERT based on pattern
         await self.execute_query(
-            "INSERT INTO error_knowledge (pattern, symptom, recommendation) VALUES (%s, %s, %s) ON CONFLICT (pattern) DO UPDATE SET symptom = EXCLUDED.symptom, recommendation = EXCLUDED.recommendation, last_occurred = CURRENT_TIMESTAMP",
+            "INSERT INTO error_knowledge (pattern, symptom, recommendation) VALUES ($1, $2, $3) ON CONFLICT (pattern) DO UPDATE SET symptom = EXCLUDED.symptom, recommendation = EXCLUDED.recommendation, last_occurred = CURRENT_TIMESTAMP",
             [pattern, symptom, recommendation]
         )
         return True
@@ -234,3 +234,21 @@ class PostgreSQLMCPClient:
             RETURNING session_id
         """)
         return len(result)
+
+    async def list_sessions(self) -> List[Dict[str, Any]]:
+        """
+        List all available sessions in the database.
+        """
+        logging.info("PostgreSQL: Listing all sessions")
+        # Ensure table exists (defensive)
+        await self.execute_query("""
+            CREATE TABLE IF NOT EXISTS session_state (
+                session_id TEXT PRIMARY KEY,
+                profile_data JSONB,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                locked_by TEXT,
+                lock_expires_at TIMESTAMP
+            )
+        """)
+        query = "SELECT session_id, updated_at, locked_by FROM session_state ORDER BY updated_at DESC"
+        return await self.execute_query(query)

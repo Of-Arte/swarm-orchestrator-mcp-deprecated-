@@ -130,7 +130,8 @@ def _orient_context(session_id: str = None) -> str:
     import shutil
     import hashlib
     # Logic extracted for testability
-    swarm_root = Path(__file__).parent.parent.parent.parent
+    # Use current working directory as swarm_root to allow running in different workspaces
+    swarm_root = Path(os.getcwd())
     
     # Determine paths based on session_id
     if session_id:
@@ -144,7 +145,7 @@ def _orient_context(session_id: str = None) -> str:
             active_dir.mkdir(parents=True, exist_ok=True)
             
             # Copy global PLAN.md if it exists, else create empty
-            global_plan = swarm_root / "docs" / "ai" / "memory" / "active" / "00_MASTER_PLAN.md"
+            global_plan = swarm_root / "docs" / "ai" / "ROADMAP.md"
             if global_plan.exists():
                 shutil.copy(global_plan, plan_path)
                 # Store hash for drift detection
@@ -156,7 +157,7 @@ def _orient_context(session_id: str = None) -> str:
             info_header = f"🧠 Swarm Orienting Protocol Results (Session: {session_id}):\n"
         else:
             # Check for Drift
-            global_plan = swarm_root / "docs" / "ai" / "memory" / "active" / "00_MASTER_PLAN.md"
+            global_plan = swarm_root / "docs" / "ai" / "ROADMAP.md"
             snapshot_hash_file = session_root / "plan_snapshot.hash"
             drift_warning = ""
             
@@ -169,8 +170,8 @@ def _orient_context(session_id: str = None) -> str:
             info_header = f"🧠 Swarm Orienting Protocol Results (Session: {session_id}):{drift_warning}\n"
     else:
         # Global Mode
-        plan_path = swarm_root / "docs" / "ai" / "memory" / "active" / "00_MASTER_PLAN.md"
-        active_dir = swarm_root / "docs" / "ai" / "memory" / "active"
+        plan_path = swarm_root / "docs" / "ai" / "ROADMAP.md"
+        active_dir = swarm_root / "docs" / "ai" / "active"
         info_header = "🧠 Swarm Orienting Protocol Results (Global):\n"
     
     info = [info_header]
@@ -212,8 +213,8 @@ def _orient_context(session_id: str = None) -> str:
     return "\n".join(info)
 
 def _claim_task(session_id: str, task_description: str) -> str:
-    swarm_root = Path(__file__).parent.parent.parent.parent
-    global_plan = swarm_root / "docs" / "ai" / "memory" / "active" / "00_MASTER_PLAN.md"
+    swarm_root = Path(os.getcwd())
+    global_plan = swarm_root / "docs" / "ai" / "ROADMAP.md"
     
     if not global_plan.exists():
         return "❌ Global PLAN.md not found."
@@ -248,9 +249,9 @@ def _claim_task(session_id: str, task_description: str) -> str:
 
 async def _merge_session(session_id: str) -> str:
     import shutil
-    swarm_root = Path(__file__).parent.parent.parent.parent
+    swarm_root = Path(os.getcwd())
     session_root = swarm_root / "docs" / "sessions" / session_id
-    global_plan = swarm_root / "docs" / "ai" / "memory" / "active" / "00_MASTER_PLAN.md"
+    global_plan = swarm_root / "docs" / "ai" / "ROADMAP.md"
     updates_count = 0
     
     if not session_root.exists():
@@ -299,13 +300,13 @@ def _sync_session_plan(session_id: str, global_plan_path: Path):
 async def _refresh_memory(session_id: str = None) -> str:
     from mcp_core.llm import generate_embedding
     
-    swarm_root = Path(__file__).parent.parent.parent.parent
+    swarm_root = Path(os.getcwd())
     
     if session_id:
         base_dir = swarm_root / "docs" / "sessions" / session_id
         active_dir = base_dir / "memory" / "active"
     else:
-        active_dir = swarm_root / "docs" / "ai" / "memory" / "active"
+        active_dir = swarm_root / "docs" / "ai" / "active"
     
     if not active_dir.exists():
         return f"❌ active/ directory not found at {active_dir}."
@@ -319,7 +320,7 @@ async def _refresh_memory(session_id: str = None) -> str:
     
     for f in active_files:
         # Safety guards
-        if any(p in f.name for p in ["MASTER_PLAN", "ERROR_LOG", "[ACTIVE]"]):
+        if any(p in f.name for p in ["ROADMAP", "ERROR_LOG", "[ACTIVE]"]):
             continue
             
         content = f.read_text(encoding="utf-8")

@@ -17,7 +17,7 @@ async def migrate():
     """
     Migrate all markdown files from docs/ai/memory/archive/ to PostgreSQL with embeddings.
     """
-    archive_dir = Path("v:/Projects/Servers/swarm/docs/ai/memory/archive")
+    archive_dir = Path("docs/ai/memory/archive")
     if not archive_dir.exists():
         print(f"Archive directory not found at {archive_dir}")
         return

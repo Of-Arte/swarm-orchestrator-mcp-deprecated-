@@ -13,7 +13,7 @@ from mcp_core.tools.dynamic import memory_worker
 # Setup Test Environment
 TEST_SESSION_ID = "test_verification_session"
 SESSION_ROOT = SWARM_ROOT / "docs" / "sessions" / TEST_SESSION_ID
-GLOBAL_PLAN = SWARM_ROOT / "docs" / "ai" / "memory" / "active" / "00_MASTER_PLAN.md"
+GLOBAL_PLAN = SWARM_ROOT / "docs" / "ai" / "memory" / "active" / "ROADMAP.md"
 
 @pytest.fixture(autouse=True)
 def manage_test_env():
