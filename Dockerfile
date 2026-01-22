@@ -24,7 +24,13 @@ WORKDIR /app
 # Git is required for Autonomous Git Worker
 RUN apt-get update && apt-get install -y \
     git \
+    curl \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
+
+# Install GitHub MCP Server globally
+RUN npm install -g @modelcontextprotocol/server-github
 
 # Create non-root user
 RUN useradd -m -u 1000 swarm && \

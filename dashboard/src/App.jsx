@@ -15,13 +15,24 @@ import Analytics from './views/Analytics';
 
 import HealthBadge from './components/HealthBadge';
 import SessionSwitcher from './components/SessionSwitcher';
+import LoginView from './views/LoginView';
 import { useSwarmData } from './hooks/useSwarmData';
 
 function App() {
   const [location] = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('swarm_key'));
   const { data: status } = useSwarmData('/status');
   const { data: health } = useSwarmData('/health', 10000); // Poll health every 10s
   const isDemo = status?.status === 'demo';
+
+  const handleLogin = (key) => {
+    localStorage.setItem('swarm_key', key);
+    setIsAuthenticated(true);
+  };
+
+  if (!isAuthenticated) {
+    return <LoginView onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app-container">
@@ -44,60 +55,88 @@ function App() {
         <ul className="nav-links">
           <li>
             <Link href="/">
-              <a className={location === '/' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/' ? 'active' : ''}
+              >
                 <LayoutDashboard size={20} />
                 <span>Overview</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/tasks">
-              <a className={location === '/tasks' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/tasks' ? 'active' : ''}
+              >
                 <ListChecks size={20} />
                 <span>Task Board</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/graph">
-              <a className={location === '/graph' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/graph' ? 'active' : ''}
+              >
                 <Network size={20} />
                 <span>AI Knowledge Base</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/memory">
-              <a className={location === '/memory' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/memory' ? 'active' : ''}
+              >
                 <Database size={20} />
                 <span>Memory</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/docs">
-              <a className={location === '/docs' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/docs' ? 'active' : ''}
+              >
                 <Book size={20} />
                 <span>Documentation</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
           <li>
             <Link href="/analytics">
-              <a className={location === '/analytics' ? 'active' : ''}>
+              <motion.a 
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                className={location === '/analytics' ? 'active' : ''}
+              >
                 <BarChart3 size={20} />
                 <span>Analytics</span>
-              </a>
+              </motion.a>
             </Link>
           </li>
         </ul>
 
         <div className="nav-footer">
           <Link href="/settings">
-            <a className={location === '/settings' ? 'active' : ''}>
+            <motion.a 
+              whileHover={{ scale: 1.02, x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              className={location === '/settings' ? 'active' : ''}
+            >
               <SettingsIcon size={20} />
               <span>Settings</span>
-            </a>
+            </motion.a>
           </Link>
         </div>
       </nav>

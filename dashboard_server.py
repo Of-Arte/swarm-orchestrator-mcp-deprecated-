@@ -14,14 +14,104 @@ sys.path.append(str(Path(__file__).parent))
 from mcp_core.orchestrator_loop import Orchestrator
 from mcp_core.search_engine import CodebaseIndexer, IndexConfig
 from mcp_core.algorithms.hipporag_retriever import HippoRAGRetriever
+from mcp_core.algorithms.hipporag_retriever import HippoRAGRetriever
 from mcp_core.telemetry.telemetry_analytics import TelemetryAnalyticsService
+
+from fastapi import Security, Depends
+from fastapi.security import APIKeyHeader
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.responses import JSONResponse
+import secrets
+
+# Security Configuration
+SWARM_DASHBOARD_KEY = os.getenv("SWARM_DASHBOARD_KEY")
+if not SWARM_DASHBOARD_KEY:
+    # Generate a secure key if one isn't provided
+    generated_key = secrets.token_urlsafe(32)
+    logging.warning(f"⚠️ NO DASHBOARD KEY SET! Generated temporary key: {generated_key}")
+    logging.warning("Please set SWARM_DASHBOARD_KEY in your .env file for persistence.")
+    SWARM_DASHBOARD_KEY = generated_key
+
+SWARM_ALLOWED_ORIGINS = os.getenv("SWARM_ALLOWED_ORIGINS", "*").split(",")
+
+api_key_header = APIKeyHeader(name="X-Swarm-Key", auto_error=False)
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    """Verifies the X-Swarm-Key header for admin access."""
+    if not api_key:
+        raise HTTPException(
+            status_code=403, 
+            detail="Authentication required. Please provide X-Swarm-Key header."
+        )
+    if api_key != SWARM_DASHBOARD_KEY:
+        raise HTTPException(
+            status_code=403, 
+            detail="Invalid authentication key."
+        )
+    return api_key
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' *"
+        return response
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, limit: int = 100, window: int = 60):
+        super().__init__(app)
+        self.limit = limit
+        self.window = window
+        self.tokens = {}
+    
+    async def dispatch(self, request, call_next):
+        import time
+        
+        # Simple IP-based rate limiting (in production use Redis)
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        
+        # Cleanup old entries (naive)
+        if len(self.tokens) > 1000:
+            self.tokens = {k: v for k, v in self.tokens.items() if now - v['last'] < self.window}
+            
+        if client_ip not in self.tokens:
+            self.tokens[client_ip] = {'count': 0, 'last': now}
+            
+        bucket = self.tokens[client_ip]
+        if now - bucket['last'] > self.window:
+            bucket['count'] = 0
+            bucket['last'] = now
+            
+        if bucket['count'] >= self.limit:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded. Try again later."}
+            )
+            
+        bucket['count'] += 1
+        return await call_next(request)
 
 app = FastAPI(title="Swarm Admin API")
 
-# Enable CORS for development
+# 1. Rate Limiting (DoS Protection)
+app.add_middleware(RateLimitMiddleware, limit=200, window=60)
+
+# 2. Security Headers
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 2. Trusted Host (Prevent Host header attacks)
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "swarm-dashboard.local"]
+)
+
+# 3. CORS (Restrict to allowed origins)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=SWARM_ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -61,7 +151,7 @@ async def get_sessions():
         "sessions": sessions
     }
 
-@app.post("/api/sessions/{session_id}/activate")
+@app.post("/api/sessions/{session_id}/activate", dependencies=[Depends(verify_api_key)])
 async def activate_session(session_id: str):
     """Switch the dashboard to a different session."""
     global _active_session_id
@@ -69,6 +159,67 @@ async def activate_session(session_id: str):
     # Initialize it if not already tracked
     get_orchestrator(session_id)
     return {"status": "success", "active_session": _active_session_id}
+
+@app.get("/api/config", dependencies=[Depends(verify_api_key)])
+async def get_config():
+    """Get system configuration (env and models)."""
+    # 1. Load safe env vars
+    safe_keys = ["GEMINI_API_KEY", "OPENAI_API_KEY", "POSTGRES_URL", "SWARM_MAX_LOOPS", "SWARM_DEBUG"]
+    env_data = {k: os.getenv(k, "") for k in safe_keys}
+    
+    # 2. Load model config
+    from mcp_core.config_loader import load_global_model_config
+    model_config = load_global_model_config()
+    
+    return {
+        "env": env_data,
+        "models": model_config
+    }
+
+@app.post("/api/config", dependencies=[Depends(verify_api_key)])
+async def update_config(config: Dict[str, Any]):
+    """Update system configuration."""
+    # This is a dangerous but powerful operation for an admin dashboard
+    # 1. Update .env file if it exists
+    if "env" in config:
+        env_path = ROOT_DIR.parent / ".env"
+        if env_path.exists():
+            # Simple .env update (naive)
+            lines = env_path.read_text().splitlines()
+            new_lines = []
+            updated_keys = set()
+            
+            for line in lines:
+                if "=" in line and not line.startswith("#"):
+                    key = line.split("=")[0].strip()
+                    if key in config["env"]:
+                        new_lines.append(f"{key}={config['env'][key]}")
+                        updated_keys.add(key)
+                        continue
+                new_lines.append(line)
+            
+            # Add new keys
+            for key, val in config["env"].items():
+                if key not in updated_keys:
+                    new_lines.append(f"{key}={val}")
+            
+            env_path.write_text("\n".join(new_lines))
+            
+    # 2. Update model config
+    if "models" in config:
+        home = os.path.expanduser("~")
+        config_path = Path(home) / ".gemini" / "antigravity" / "mcp_config.json"
+        
+        if config_path.exists():
+            try:
+                import json
+                data = json.loads(config_path.read_text())
+                data["models"] = config["models"]
+                config_path.write_text(json.dumps(data, indent=2))
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to update model config: {e}")
+
+    return {"status": "success", "message": "Configuration updated. Restart may be required."}
 
 @app.get("/api/status")
 async def get_status():
@@ -254,14 +405,14 @@ async def get_health():
         "active_tasks": len([t for t in orch.state.tasks.values() if t.status == "RUNNING"]),
     }
 
-@app.post("/api/telemetry/prune")
+@app.post("/api/telemetry/prune", dependencies=[Depends(verify_api_key)])
 async def prune_telemetry(days: int = 30):
     """Manually trigger telemetry pruning."""
     analytics = get_analytics()
     deleted = analytics.prune_old_events(retention_days=days)
     return {"deleted_rows": deleted}
 
-@app.post("/api/telemetry/optimize")
+@app.post("/api/telemetry/optimize", dependencies=[Depends(verify_api_key)])
 async def optimize_telemetry():
     """Force telemetry DB optimization."""
     analytics = get_analytics()
@@ -289,7 +440,7 @@ async def get_circuit_breakers():
         })
     return breakers
 
-@app.post("/api/circuit-breakers/{tool}/reset")
+@app.post("/api/circuit-breakers/{tool}/reset", dependencies=[Depends(verify_api_key)])
 async def reset_circuit_breaker(tool: str):
     """
     Reset a circuit breaker (manual override).
@@ -305,7 +456,7 @@ async def reset_circuit_breaker(tool: str):
 
 # Task Management Endpoints
 
-@app.post("/api/tasks")
+@app.post("/api/tasks", dependencies=[Depends(verify_api_key)])
 async def create_task(description: str, priority: str = "NORMAL"):
     """Create a new task in the orchestrator."""
     orch = get_orchestrator()
@@ -325,7 +476,7 @@ async def create_task(description: str, priority: str = "NORMAL"):
     
     return {"task_id": task_id, "status": "created"}
 
-@app.post("/api/tasks/{task_id}/cancel")
+@app.post("/api/tasks/{task_id}/cancel", dependencies=[Depends(verify_api_key)])
 async def cancel_task(task_id: str):
     """Cancel a running or pending task."""
     orch = get_orchestrator()
@@ -343,7 +494,7 @@ async def cancel_task(task_id: str):
     
     return {"task_id": task_id, "status": "cancelled"}
 
-@app.post("/api/tasks/{task_id}/retry")
+@app.post("/api/tasks/{task_id}/retry", dependencies=[Depends(verify_api_key)])
 async def retry_task(task_id: str):
     """Retry a failed task."""
     orch = get_orchestrator()
@@ -367,7 +518,7 @@ async def retry_task(task_id: str):
 
 # Indexing & System Control Endpoints
 
-@app.post("/api/indexing/codebase")
+@app.post("/api/indexing/codebase", dependencies=[Depends(verify_api_key)])
 async def trigger_codebase_indexing(path: str = ".", provider: str = "auto"):
     """Trigger codebase indexing (background operation)."""
     try:
@@ -387,7 +538,7 @@ async def trigger_codebase_indexing(path: str = ".", provider: str = "auto"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/indexing/graph")
+@app.post("/api/indexing/graph", dependencies=[Depends(verify_api_key)])
 async def rebuild_knowledge_graph():
     """Rebuild HippoRAG knowledge graph from indexed codebase."""
     try:

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Settings as SettingsIcon, Bell, Shield, Palette, Layout, Save } from 'lucide-react';
 import QuickActionsPanel from '../components/QuickActionsPanel';
 import { IndexingPanel, LogViewer } from '../components/SystemControls';
+import EnvEditor from '../components/EnvEditor';
 
 const Settings = () => {
   return (
@@ -94,6 +95,7 @@ const Settings = () => {
 
       <QuickActionsPanel />
       <IndexingPanel />
+      <EnvEditor />
       <LogViewer />
 
       <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
