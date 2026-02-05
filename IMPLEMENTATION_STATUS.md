@@ -10,16 +10,16 @@
 These components are fully implemented, tested, and considered stable for production use.
 
 ### Core Infrastructure
-- **LLM Router (`mcp_core/llm.py`)**: Robust implementation with Gemini cascading fallbacks, OpenAI support, and Local (Ollama) integration.
-- **FastMCP Server (`server.py`)**: Fully functional MCP protocol implementation.
-- **Logging & Telemetry**: Comprehensive logging and event tracking.
+- **LLM Router (`mcp_core/llm.py`)**: Robust implementation with Gemini cascading fallbacks, OpenAI support, and Local (Ollama) integration. ([#10](https://github.com/AgentAgony/swarm/issues/10))
+- **FastMCP Server (`server.py`)**: Fully functional MCP protocol implementation. ([#8](https://github.com/AgentAgony/swarm/issues/8))
+- **Logging & Telemetry**: Comprehensive logging and event tracking. ([#20](https://github.com/AgentAgony/swarm/issues/20))
 
 ### Algorithm Workers
 - **HippoRAG Retriever (`mcp_core/algorithms/hipporag_retriever.py`)**: 
     - Full AST graph construction.
     - Personalized PageRank implementation.
     - Support for Python, JavaScript, TypeScript, Go, and Rust.
-- **Ochiai Fault Localizer (`mcp_core/algorithms/ochiai_localizer.py`)**:
+- **Ochiai Fault Localizer (`mcp_core/algorithms/ochiai_localizer.py`)**: ([#12](https://github.com/AgentAgony/swarm/issues/12))
     - Full statistical debugging using `coverage.py`.
     - Spectrum-based fault localization logic complete.
 - **Language Parsers (`mcp_core/algorithms/parsers/`)**:
@@ -28,7 +28,7 @@ These components are fully implemented, tested, and considered stable for produc
     - `GoParser`, `RustParser`, `JavaScriptParser`, `TypeScriptParser`: Fully implemented.
 
 ### Local Tools
-- **Git Worker (`mcp_core/algorithms/git_worker.py`)**:
+- **Git Worker (`mcp_core/algorithms/git_worker.py`)**: ([#8](https://github.com/AgentAgony/swarm/issues/8))
     - Repository detection (Git, GitHub, GitLab).
     - Workflow instruction generation.
 
@@ -48,7 +48,7 @@ These components have a solid foundation but lack high-level abstractions or con
 
 These components have high-level classes and methods defined to establish the architecture, but the internal logic is currently stubbed with placeholders.
 
-### Autonomous Git Engine (`mcp_core/algorithms/git_roles/`)
+### Autonomous Git Engine (`mcp_core/algorithms/git_roles/`) ([#19](https://github.com/AgentAgony/swarm/issues/19) / [#25](https://github.com/AgentAgony/swarm/issues/25))
 - **`FeatureScout`**: `✅ Functional` - Scans for TODOs, identifies underdeveloped modules via HippoRAG, generates LLM-powered proposals, creates issues.
 - **`CodeAuditor`**: `✅ Functional` - Security pattern scanning, git diff integration, markdown report generation, telemetry provenance.
 - **`IssueTriage`**: `✅ Functional` - Priority matrix (P0-P3), impact/effort estimation, label suggestions, memory store integration.
@@ -57,8 +57,7 @@ These components have high-level classes and methods defined to establish the ar
 
 ### Dynamic Tools
 - **Deliberation (`mcp_core/tools/dynamic/deliberation.py`)**:
-    - **Current**: Returns a prompt directing the agent to use `sequential-thinking`.
-    - **Planned**: Orchestration of multi-step algorithmic workflows (Decompose -> Analyze -> Synthesize).
+    - **Current**: Implements structured `Decompose` → `Analyze` → `Synthesize` workflow. Uses `HippoRAG` for context and simulates workers via LLM.
 
 ---
 

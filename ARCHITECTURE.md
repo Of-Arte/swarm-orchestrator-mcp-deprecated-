@@ -1,100 +1,204 @@
 # Architecture
 
-Project Swarm v3.3 is a Python-native, "Gemini-First" autonomous AI development orchestrator. It unifies state management, algorithmic reasoning, and a multi-role autonomous Git engine into a single, cohesive system.
+Project Swarm v3.4 is a Python-native, "Gemini-First" autonomous AI development orchestrator. It unifies state management, algorithmic reasoning, telemetry-backed memory, and a multi-role autonomous Git engine into a single, cohesive MCP server.
+
+---
 
 ## System Overview
 
 ```mermaid
 graph TD
-    User([User]) --> CLI[Orchestrator CLI / Client]
-    CLI --> FastMCP{FastMCP Server}
-    
-    %% Core Logic
-    FastMCP --> Orchestrator[Orchestrator Engine]
-    Orchestrator --> Blackboard[(Blackboard State)]
-    
-    %% Gemini Integration
-    Orchestrator -- Inference --> Gemini[Google Gemini API]
-    Orchestrator -- Embeddings --> Gemini
-    
-    %% v3.0 Algorithmic Workers (Lazy Loaded)
+    subgraph "User Interfaces"
+        User([Human / AI Agent])
+        IDE([Antigravity / Cursor])
+        CLI([CLI / orchestrator.py])
+    end
 
-    Orchestrator -- debate? --> Consensus[Consensus Engine]
-    Orchestrator -- debug? --> SBFL[Ochiai Debugger]
-    
-    %% Local Tools
-    Orchestrator --> Search[Python Hybrid Search]
-    Orchestrator --> Git[Autonomous Git Worker]
+    subgraph "MCP Layer"
+        FastMCP{FastMCP Server}
+    end
+
+    subgraph "Core Engine"
+        Orchestrator[Orchestrator Loop]
+        Blackboard[(Blackboard<br/>project_profile.json)]
+        SQLite[(Telemetry DB<br/>~/.swarm/telemetry.db)]
+        Postgres[(PostgreSQL<br/>Optional)]
+    end
+
+    subgraph "Algorithmic Workers"
+        HippoRAG[HippoRAG<br/>AST Graph + PageRank]
+        SBFL[Ochiai<br/>Fault Localization]
+        Z3[Z3 Verifier<br/>Formal Proofs]
+        GitRoles[Git Roles<br/>Architect, Auditor, etc.]
+    end
+
+    subgraph "External Services"
+        Gemini[Google Gemini API]
+        GitHub[GitHub MCP]
+    end
+
+    User --> IDE --> FastMCP
+    User --> CLI --> FastMCP
+    FastMCP --> Orchestrator
+
+    Orchestrator --> Blackboard
+    Orchestrator --> SQLite
+    Orchestrator -.-> Postgres
+
+    Orchestrator --> HippoRAG
+    Orchestrator --> SBFL
+    Orchestrator --> Z3
+    Orchestrator --> GitRoles
+
+    Orchestrator -- Inference --> Gemini
+    Orchestrator -- Embeddings --> Gemini
+    GitRoles -- PRs/Issues --> GitHub
 ```
+
+---
 
 ## Core Components
 
-### 1. The Protocol (Orchestrator)
-Located in `mcp_core/orchestrator_loop.py`.
-- **State Machine**: Manages the lifecycle of tasks and context.
-- **Model Router**: `mcp_core/llm.py` implements a smart cascade:
-    - **Primary**: `gemini-3-flash-preview`
-    - **Fallback**: `gemini-2.5-flash` -> `gemini-2.5-pro`
-    - **Local**: `ollama/llama3` (optional)
+### 1. Orchestrator Protocol
+**Location:** `mcp_core/orchestrator_loop.py`
 
-### 2. The Blackboard (State)
-- **Primary State**: `project_profile.json`, managed via **Pydantic** models in `mcp_core/swarm_schemas.py`.
-- **Concurrency**: Cross-platform **FileLock** ensures thread-safe and process-safe writes between agents and the orchestrator.
-- **Persistence**: File-system based JSON storage with atomic write validation.
-- **Strategic State**: Bi-directional sync with `docs/PLAN.md` and `issues.md` for human-readable roadmaps.
+The central event loop that manages:
+*   **Task Lifecycle**: PENDING → IN_PROGRESS → COMPLETED/FAILED.
+*   **Algorithm Dispatch**: Routes tasks to HippoRAG, SBFL, Z3, or Git based on flags.
+*   **Provenance Logging**: Every action is tracked for auditability.
 
-### 3. Native Gemini Integration
-- **Inference**: Direct gRPC/REST calls for high-speed reasoning.
-- **Embeddings**: `models/text-embedding-004` powers the search engine.
-- **Context**: 1M+ token window utilized for full-file analysis and HippoRAG graph construction.
+### 2. LLM Router
+**Location:** `mcp_core/llm.py`
 
-### 4. Autonomous Git Engine
-Swarm v3.3 introduces a multi-role Git system designed for high-autonomy workflows.
+Gemini-first model cascade with automatic fallback:
+1.  `gemini-2.5-flash` (Primary)
+2.  `gemini-2.5-pro` (Fallback for complex tasks)
+3.  `ollama/llama3` (Optional local model)
+
+### 3. Blackboard State
+**Location:** `project_profile.json` + `mcp_core/swarm_schemas.py`
+
+*   **Pydantic Models**: Strict typing for all state objects (Tasks, Provenance, Config).
+*   **FileLock**: Cross-platform, process-safe concurrent access.
+*   **Sync Engine**: Bi-directional sync with `docs/ai/PLAN.md` for human-readable roadmaps.
+
+### 4. Telemetry & Memory
+**Location:** `mcp_core/telemetry/`
+
+| Module | Purpose |
+|--------|---------|
+| `collector.py` | Event buffering and provenance tracking. |
+| `memory_store.py` | SQLite-backed context persistence across sessions. |
+| `self_healing.py` | Detects repeated failures and injects `SYSTEM_ALERT` into agent context. |
+| `telemetry_analytics.py` | Queries historical data for tool performance and circuit breakers. |
+
+### 5. Sync Engine (Antigravity Bridge)
+**Location:** `mcp_core/sync/`
+
+| Module | Purpose |
+|--------|---------|
+| `sync_engine.py` | Inbound/Outbound sync between `PLAN.md` and the Blackboard. |
+| `markdown_bridge.py` | Parses and generates Markdown task checklists. |
+
+---
+
+## Algorithm Workers
+
+### HippoRAG Retriever
+**Location:** `mcp_core/algorithms/hipporag_retriever.py`
+
+Builds an Abstract Syntax Tree (AST) knowledge graph and uses Personalized PageRank for deep code understanding.
+
+*   **Languages**: Python (built-in `ast`), JavaScript, TypeScript, Go, Rust (via Tree-sitter).
+*   **Parsers**: `mcp_core/algorithms/parsers/` (plugin system).
+
+### Ochiai SBFL
+**Location:** `mcp_core/algorithms/ochiai_localizer.py`
+
+Statistical fault localization that identifies the most "suspicious" lines of code based on test coverage data.
+
+### Z3 Verifier
+**Location:** `mcp_core/algorithms/z3_verifier.py`
+
+Formal verification using the Z3 SMT solver. Generates invariant checks for critical functions.
+
 > [!WARNING]
-> **Status: 🚧 Experimental Skeleton**
-> The high-level roles are defined, but internal logic is currently stubbed with placeholders.
+> **Status: Partial.** Core integration complete; high-level constraint generators are stubbed.
 
-- **Roles**:
-    - **Feature Scout**: Scans codebase for expansion opportunities.
-    - **Code Auditor**: Identifies bugs and documentation drift.
-    - **Issue Triage**: Prioritizes and assigns tasks from the backlog.
-    - **Branch Manager**: Manages merging and stacked PR chains.
-    - **Project Lifecycle**: Orchestrates repository creation and bootstrapping.
-- **Integrations**: Uses `git-mcp` for local operations and `github-mcp` for remote PR management.
+### Git Roles
+**Location:** `mcp_core/algorithms/git_roles/`
 
-## Component Maturity Matrix
+A multi-agent system for autonomous repository maintenance:
+*   `FeatureScout`: Identifies expansion opportunities.
+*   `CodeAuditor`: Finds bugs and documentation drift.
+*   `IssueTriage`: Prioritizes backlog items.
+*   `BranchManager`: Orchestrates PRs and merges.
 
-| Component | Maturity | Description |
-|-----------|----------|-------------|
-| **Orchestrator Protocol** | `✅ Stable` | Core state machine and event loop logic. |
-| **LLM Router** | `✅ Stable` | Gemini-first with robust provider cascading. |
-| **Search Engine** | `✅ Stable` | Hybrid Keyword code search (~1ms latency). |
-| **HippoRAG Retriever** | `✅ Stable` | Multi-language AST graph analysis (Python, JS, TS, Go, Rust). |
-| **Ochiai Debugger** | `✅ Stable` | Statistical fault localization with coverage integration. |
-| **Z3 Verifier** | `⚠️ Partial` | Core SMT solver integration complete; high-level generators missing. |
-| **Git Agent Roles** | `🚧 Skeleton` | Role definitions present; execution logic is stubbed. |
-| **Deliberation Tool** | `🚧 Stub` | Redirects to sequential thinking; algorithmic worker delegation unimplemented. |
+> [!WARNING]
+> **Status: Experimental.** Role behaviors implemented but require real-world validation.
 
-## Data Flow
-
-### Example: Autonomous Handoff Flow
-1. **Scout**: `Feature Scout` identifies a missing telemetry feature and creates a task.
-2. **Orchestrator**: Updates `project_profile.json` and assigns to the `Engineer`.
-3. **Execution**: `Engineer` creates a branch (e.g., `feat/provenance`), applies edits, and runs tests.
-4. **Audit**: `Code Auditor` scans the branch for bugs and documentation drift.
-5. **Manager**: `Branch Manager` opens a PR and monitors for CI/approval.
+---
 
 ## File Structure
 
 ```
 swarm/
+├── server.py                 # FastMCP Server Entrypoint
+├── Dockerfile                # Python 3.11 Slim Image
+├── project_profile.json      # The Blackboard (State)
+│
 ├── mcp_core/
-│   ├── llm.py              # Gemini Router & Fallback Logic
-│   ├── orchestrator_loop.py # Main Event Loop
-│   ├── search_engine.py    # Python Search & Indexing
-│   ├── git_worker.py       # Autonomous Version Control
-│   └── algorithms/         # v3.2 Advanced Logic (SBFL, Z3, etc.)
-├── server.py               # FastMCP Server Entrypoint
-├── Dockerfile              # Python 3.11 Slim Image
-└── project_profile.json    # The Blackboard
+│   ├── orchestrator_loop.py  # Main Event Loop
+│   ├── llm.py                # Gemini Router & Fallback Logic
+│   ├── search_engine.py      # Python Hybrid Search & Indexing
+│   ├── swarm_schemas.py      # Pydantic State Models
+│   ├── postgres_client.py    # Optional SQL Persistence
+│   │
+│   ├── algorithms/
+│   │   ├── hipporag_retriever.py
+│   │   ├── ochiai_localizer.py
+│   │   ├── z3_verifier.py
+│   │   ├── git_worker.py
+│   │   ├── git_role_dispatcher.py
+│   │   ├── debate_engine.py
+│   │   ├── voting_consensus.py
+│   │   ├── context_pruner.py
+│   │   └── parsers/          # Multi-language AST (Python, JS, TS)
+│   │
+│   ├── telemetry/
+│   │   ├── collector.py
+│   │   ├── memory_store.py
+│   │   ├── self_healing.py
+│   │   └── telemetry_analytics.py
+│   │
+│   ├── sync/
+│   │   ├── sync_engine.py
+│   │   └── markdown_bridge.py
+│   │
+│   └── tools/
+│       ├── dynamic/          # Runtime-loaded tools
+│       │   ├── deliberation.py
+│       │   └── ...
+│       └── system/           # Core MCP tool definitions
+│
+└── docs/
+    ├── ai/                   # AI Agent documentation
+    └── human/                # Human developer documentation
 ```
+
+---
+
+## Component Maturity Matrix
+
+|Component|Status|Notes|
+|---|---|---|
+|**Orchestrator Protocol**|✅ Stable|Core state machine and event loop.|
+|**LLM Router**|✅ Stable|Gemini-first with provider cascading.|
+|**Search Engine**|✅ Stable|Hybrid Keyword/Semantic (~1ms keyword).|
+|**HippoRAG Retriever**|✅ Stable|Multi-language AST graph.|
+|**Ochiai Debugger**|✅ Stable|Statistical fault localization.|
+|**Telemetry & Memory**|✅ Stable|SQLite-backed persistence & self-healing.|
+|**Sync Engine**|✅ Stable|PLAN.md bi-directional sync.|
+|**Z3 Verifier**|⚠️ Partial|Solver wrapper complete; constraint generation pending.|
+|**Git Agent Roles**|⚠️ Experimental|Roles defined & active; core behaviors implemented.|
+|**Deliberation Tool**|⚠️ Experimental|Structured workflow active; workers simulated via LLM.|
