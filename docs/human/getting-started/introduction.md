@@ -1,8 +1,8 @@
-# Introduction to Vexorbis Swarm
+# Introduction to Swarm Orchestrator
 
-Vexorbis Swarm is a **Model Context Protocol (MCP) server** that transforms your AI coding assistant into an autonomous engineering team. Instead of relying purely on LLM reasoning, Vexorbis Swarm uses specialized algorithmic workers to deliver faster, more reliable results.
+Swarm Orchestrator is a **Model Context Protocol (MCP) server** that transforms your AI coding assistant into an autonomous engineering team. Instead of relying purely on LLM reasoning, Vexorbis Swarm uses specialized algorithmic workers to deliver faster, more reliable results.
 
-## What Problem Does Vexorbis Swarm Solve?
+## What Problem Does Swarm Orchestrator Solve?
 
 Traditional AI coding assistants are powerful but have limitations:
 
