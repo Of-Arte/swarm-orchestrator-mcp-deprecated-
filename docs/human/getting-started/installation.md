@@ -1,6 +1,6 @@
 # Installation
 
-Get Vexorbis Swarm up and running in minutes.
+Get Swarm Orchestrator up and running in minutes.
 
 ## Prerequisites
 
