@@ -1,4 +1,4 @@
-> **⚠️ DEPRECATED:** AI moves fast. This project is no longer being updated. We are migrating away from MCP and adapting to the latest tools.
+> **⚠️ DEPRECATED:** Fully migrated to hermes agent.
 
 <div align="center">
   <img src="docs/images/swarm_logo.png" alt="Swarm Logo" width="200"/>
