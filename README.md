@@ -21,11 +21,6 @@
 **Swarm Orchestrator** is a Model Context Protocol (MCP) server that extends AI coding assistants like Antigravity, Cursor, and Claude Desktop with **deterministic, algorithmic capabilities**. Instead of relying purely on LLM reasoning, Vexorbis Swarm uses specialized workers—code analysis, fault localization, formal verification, and autonomous Git management—to deliver faster, more reliable results.
 
 ---
-
-## Demo
-
-https://vimeo.com/1158005784
-
 ## ✨ The Three Pillars
 
 <table>
