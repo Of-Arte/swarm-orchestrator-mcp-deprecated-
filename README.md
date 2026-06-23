@@ -1,7 +1,6 @@
-> **⚠️ DEPRECATED:** AI moves fast. This project is no longer being updated. We are migrating away from MCP and adapting to the latest tools.
+> **⚠️ DEPRECATED:** Fully migrated to hermes agent.
 
 <div align="center">
-  <img src="docs/images/swarm_logo.png" alt="Swarm Logo" width="200"/>
 
   # Swarm Orchestrator v3.4
 
@@ -14,59 +13,20 @@
 
 </div>
 
----
-
-## What is Swarm?
-
 **Swarm Orchestrator** is a Model Context Protocol (MCP) server that extends AI coding assistants like Antigravity, Cursor, and Claude Desktop with **deterministic, algorithmic capabilities**. Instead of relying purely on LLM reasoning, Vexorbis Swarm uses specialized workers—code analysis, fault localization, formal verification, and autonomous Git management—to deliver faster, more reliable results.
 
----
+  ## 📖 Documentation
+  
+<div align="center">
 
-## Demo
+| Getting Started | Concepts | Guides | Reference |
+|-----------------|----------|--------|-----------|
+| [Introduction](docs/human/getting-started/introduction.md) | [Architecture](docs/human/concepts/architecture.md) | [PLAN.md Syntax](docs/human/guides/plan-syntax.md) | [Tools](docs/human/reference/tools.md) |
+| [Installation](docs/human/getting-started/installation.md) | [Decision Logic](docs/human/concepts/decision-logic.md) | [Git Workflows](docs/human/guides/git-workflows.md) | [Configuration](docs/human/reference/configuration.md) |
+| [Quick Start](docs/human/getting-started/quickstart.md) | [Three Pillars](docs/human/concepts/three-pillars.md) | [Debugging](docs/human/guides/debugging.md) | [API Reference](docs/human/reference/api.md) |
+| | | [Custom Tools](docs/human/guides/custom-tools.md) | [Troubleshooting](docs/human/reference/troubleshooting.md) |
 
-https://vimeo.com/1158005784
-
-## ✨ The Three Pillars
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### 🧠 Algorithmic Core
-
-> **Go beyond text search.**
-
-*   **HippoRAG**: AST-based knowledge graphs with Personalized PageRank for deep code understanding.
-*   **Ochiai SBFL**: Find bugs statistically, not by guessing.
-*   **Z3 Verifier**: Formal verification for critical logic.
-
-</td>
-<td width="33%" valign="top">
-
-### 🤖 Autonomous Workforce
-
-> **Let the agents handle the grunt work.**
-
-*   **Git Agent Roles**: Specialized workers (Architect, Engineer, Auditor) that plan, commit, and create PRs.
-*   **Dynamic Toolsmith**: Vexorbis Swarm can design and register new tools at runtime.
-*   **Markdown-Driven**: Control the workforce from a `PLAN.md` file.
-
-</td>
-<td width="33%" valign="top">
-
-### 🛡️ Active Governance
-
-> **Stay in control.**
-
-*   **Telemetry Memory**: SQLite-backed persistence for session context and failure analysis.
-*   **Self-Healing**: Detects repeated failures and alerts agents to change strategy.
-*   **Permission-First**: Autonomous actions (like tool creation) require user approval.
-
-</td>
-</tr>
-</table>
-
----
+</div>
 
 ## 🚀 Quick Start
 
@@ -133,31 +93,6 @@ Vexorbis Swarm synchronizes with a human-readable `PLAN.md` file, enabling a tru
 
 **On completion:**
 *   Agent marks the task `[x]` in your `PLAN.md` automatically.
-
----
-
-## 📖 Documentation
-
-| Getting Started | Concepts | Guides | Reference |
-|-----------------|----------|--------|-----------|
-| [Introduction](docs/human/getting-started/introduction.md) | [Architecture](docs/human/concepts/architecture.md) | [PLAN.md Syntax](docs/human/guides/plan-syntax.md) | [Tools](docs/human/reference/tools.md) |
-| [Installation](docs/human/getting-started/installation.md) | [Decision Logic](docs/human/concepts/decision-logic.md) | [Git Workflows](docs/human/guides/git-workflows.md) | [Configuration](docs/human/reference/configuration.md) |
-| [Quick Start](docs/human/getting-started/quickstart.md) | [Three Pillars](docs/human/concepts/three-pillars.md) | [Debugging](docs/human/guides/debugging.md) | [API Reference](docs/human/reference/api.md) |
-| | | [Custom Tools](docs/human/guides/custom-tools.md) | [Troubleshooting](docs/human/reference/troubleshooting.md) |
-
----
-
-## 📊 Implementation Status
-
-| Component | Status |
-|-----------|--------|
-| HippoRAG (Multi-language AST) | ✅ Stable |
-| Hybrid Search Engine | ✅ Stable |
-| Ochiai SBFL | ✅ Stable |
-| Telemetry & Memory | ✅ Stable |
-| Git Agent Roles | 🚧 Experimental |
-| Z3 Verifier | ⚠️ Partial |
-| Structured Deliberation | 🚧 Stub |
 
 ---
 
