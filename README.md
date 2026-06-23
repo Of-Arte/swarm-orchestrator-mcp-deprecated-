@@ -72,46 +72,9 @@ flowchart LR
     style D fill:#e74c3c,color:#fff
 ```
 
----
-
-## 🔄 Antigravity Sync
-
-Vexorbis Swarm synchronizes with a human-readable `PLAN.md` file, enabling a true co-pilot workflow.
-
-**From Your Markdown:**
-```markdown
-## Todo
-- [ ] Refactor auth module @architect
-  - Context: auth.py
-- [ ] Add login tests @engineer
-```
-
-**Vexorbis Swarm interprets:**
-*   `[ ]` → Task is `PENDING`. Agent picks it up.
-*   `@architect` → Assigns to the Architect worker.
-*   `Context:` → Pre-loads `auth.py` into the agent's window.
-
-**On completion:**
-*   Agent marks the task `[x]` in your `PLAN.md` automatically.
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-**Development Mode:**
-```bash
-# Enable debug features
-export SWARM_DEBUG=true
-export SWARM_VERBOSE_TELEMETRY=true
-```
-
----
-
 ## 📜 License
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT
 
 
 
